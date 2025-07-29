@@ -1,0 +1,15 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+path="res://.import/alarm.mp3-36402909550231b3a84b8500adfbdba4.mp3str"
+
+[deps]
+
+source_file="res://assets/sounds/microbit/alarm.mp3"
+dest_files=[ "res://.import/alarm.mp3-36402909550231b3a84b8500adfbdba4.mp3str" ]
+
+[params]
+
+loop=true
+loop_offset=0

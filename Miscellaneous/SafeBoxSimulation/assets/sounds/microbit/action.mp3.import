@@ -1,0 +1,15 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+path="res://.import/action.mp3-648548d6492a8bc4ce2eaa609af51cfa.mp3str"
+
+[deps]
+
+source_file="res://assets/sounds/microbit/action.mp3"
+dest_files=[ "res://.import/action.mp3-648548d6492a8bc4ce2eaa609af51cfa.mp3str" ]
+
+[params]
+
+loop=false
+loop_offset=0

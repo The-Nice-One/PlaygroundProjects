@@ -1,0 +1,224 @@
+{
+    "points": {
+        "1348075823957147710": 1,
+        "536687564401147908": 30
+    },
+    "events": [
+        {
+            "user": 1348075823957147710,
+            "in": [
+                2025,
+                5,
+                3,
+                21,
+                59,
+                59,
+                472688
+            ],
+            "amount": 2
+        }
+    ],
+    "log": [
+        {
+            "user": "the_nice_one.#0",
+            "action": "**CHANGED** 1 :star: `Reputation Point(s)` for the_nice_one.",
+            "time": [
+                2025,
+                3,
+                8,
+                20,
+                37,
+                58,
+                854627
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**TIMED** the_nice_one. to get 50 :star: `Reputation Point(s)` in `4` minutes",
+            "time": [
+                2025,
+                3,
+                8,
+                20,
+                38,
+                19,
+                277818
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**TIMED** the_nice_one. to get 3 :star: `Reputation Point(s)` in `1` minutes",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                8,
+                33,
+                722324
+            ]
+        },
+        {
+            "user": ":star: System",
+            "action": "**CHANGED** 3 :star: `Reputation Point(s)` for 536687564401147908",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                9,
+                33,
+                413965
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**SET** `\ud83c\udfb2` as the emoji for `Reputation Point(s)`",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                9,
+                53,
+                574856
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**SET** `Event` as the point(s) name `",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                10,
+                8,
+                577081
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**SET** `admin` as the role needed to give \ud83c\udfb2 `Event(s)`",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                11,
+                15,
+                394332
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**SET** `Event\\` as the point(s) name `",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                11,
+                36,
+                344034
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**SET** `Event Tokens` as the point(s) name `",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                13,
+                56,
+                103191
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**TIMED** Playground Bot#9083 to get 1 \ud83c\udfb2 `Event Tokens(s)` in `3` minutes",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                18,
+                43,
+                729675
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**TIMED** Playground Bot#9083 to get 2 \ud83c\udfb2 `Event Tokens(s)` in `40` minutes",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                19,
+                59,
+                656934
+            ]
+        },
+        {
+            "user": "\ud83c\udfb2 System",
+            "action": "**CHANGED** 1 \ud83c\udfb2 `Event Tokens(s)` for Playground Bot#9083",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                29,
+                31,
+                317887
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**TIMED** the_nice_one. to get 30 \ud83c\udfb2 `Event Tokens(s)` in `1` minutes",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                29,
+                54,
+                163910
+            ]
+        },
+        {
+            "user": "the_nice_one.#0",
+            "action": "**RESET** the_nice_one.'s \ud83c\udfb2 `Event Tokens(s)`",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                30,
+                3,
+                122074
+            ]
+        },
+        {
+            "user": "\ud83c\udfb2 System",
+            "action": "**CHANGED** 30 \ud83c\udfb2 `Event Tokens(s)` for the_nice_one.",
+            "time": [
+                2025,
+                5,
+                3,
+                21,
+                30,
+                53,
+                412182
+            ]
+        }
+    ],
+    "configuration": {
+        "role": "admin",
+        "emoji": "\ud83c\udfb2",
+        "point": "Event Tokens",
+        "prefix": "!"
+    }
+}

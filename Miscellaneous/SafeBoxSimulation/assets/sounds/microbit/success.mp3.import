@@ -1,0 +1,15 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+path="res://.import/success.mp3-e86c0e0ef7c1aff4b68cf55e2f31ec18.mp3str"
+
+[deps]
+
+source_file="res://assets/sounds/microbit/success.mp3"
+dest_files=[ "res://.import/success.mp3-e86c0e0ef7c1aff4b68cf55e2f31ec18.mp3str" ]
+
+[params]
+
+loop=false
+loop_offset=0

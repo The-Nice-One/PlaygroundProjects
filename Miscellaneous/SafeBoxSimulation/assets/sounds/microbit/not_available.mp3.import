@@ -1,0 +1,15 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+path="res://.import/not_available.mp3-bcde23760a3be2710b22bf833a1598fa.mp3str"
+
+[deps]
+
+source_file="res://assets/sounds/microbit/not_available.mp3"
+dest_files=[ "res://.import/not_available.mp3-bcde23760a3be2710b22bf833a1598fa.mp3str" ]
+
+[params]
+
+loop=false
+loop_offset=0

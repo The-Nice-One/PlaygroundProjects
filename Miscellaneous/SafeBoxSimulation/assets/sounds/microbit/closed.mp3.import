@@ -1,0 +1,15 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+path="res://.import/closed.mp3-8069adc7deda0809bbbb9eab8c2ab8fb.mp3str"
+
+[deps]
+
+source_file="res://assets/sounds/microbit/closed.mp3"
+dest_files=[ "res://.import/closed.mp3-8069adc7deda0809bbbb9eab8c2ab8fb.mp3str" ]
+
+[params]
+
+loop=false
+loop_offset=0

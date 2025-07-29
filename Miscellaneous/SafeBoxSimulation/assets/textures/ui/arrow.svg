@@ -1,0 +1,13 @@
+<?xml version="1.0"?><svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <title>arrow</title>
+ <g>
+  <title>Layer 1</title>
+  <use fill="black" y="10" xlink:href="#rect899" x="10" width="744.09448" id="use1503" height="1052.3622"/>
+  <ellipse id="svg_1" cy="312" cx="186" stroke-width="5" stroke="#000000" fill="#FF0000"/>
+  <ellipse id="svg_2" cy="307" cx="114" stroke-width="5" stroke="#000000" fill="#df5486"/>
+  <ellipse id="svg_3" cy="316" cx="188" stroke-width="5" stroke="#000000" fill="#df5486"/>
+  <ellipse id="svg_4" cy="311" cx="153" stroke-width="5" stroke="#000000" fill="#df5486"/>
+  <ellipse id="svg_5" cy="336" cx="253" stroke-width="5" stroke="#000000" fill="none"/>
+  <path fill="#df5486" fill-rule="evenodd" stroke="#000000" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="4" id="rect899" d="m297.276184,114.845963l23.411316,118.560287l-240.34375,-25l0,157.9375l240.34375,-25l-23.411316,111.220947l234.661316,-165.189697l-234.661316,-172.529037z"/>
+ </g>
+</svg>

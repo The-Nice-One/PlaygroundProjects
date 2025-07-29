@@ -1,0 +1,310 @@
+[gd_scene load_steps=31 format=2]
+
+[ext_resource path="res://scripts/Main.gd" type="Script" id=1]
+[ext_resource path="res://assets/models/safebox.tscn" type="PackedScene" id=2]
+[ext_resource path="res://assets/sounds/microbit/not_available.mp3" type="AudioStream" id=3]
+[ext_resource path="res://assets/sounds/microbit/alarm.mp3" type="AudioStream" id=4]
+[ext_resource path="res://assets/textures/microbit/button_pressed.png" type="Texture" id=5]
+[ext_resource path="res://assets/textures/microbit/led_off.png" type="Texture" id=6]
+[ext_resource path="res://scripts/CameraControl.gd" type="Script" id=7]
+[ext_resource path="res://assets/models/Material_001.material" type="Material" id=8]
+[ext_resource path="res://assets/sounds/microbit/action.mp3" type="AudioStream" id=9]
+[ext_resource path="res://assets/textures/microbit/led_on.png" type="Texture" id=10]
+[ext_resource path="res://assets/sounds/microbit/closed.mp3" type="AudioStream" id=11]
+[ext_resource path="res://assets/textures/ui/arrow.svg" type="Texture" id=12]
+[ext_resource path="res://assets/textures/microbit/heart_base.png" type="Texture" id=13]
+[ext_resource path="res://scripts/Microbit.gd" type="Script" id=14]
+[ext_resource path="res://assets/textures/microbit/button_unpressed.png" type="Texture" id=15]
+[ext_resource path="res://assets/textures/microbit/empty_base.png" type="Texture" id=16]
+[ext_resource path="res://assets/sounds/microbit/success.mp3" type="AudioStream" id=17]
+[ext_resource path="res://assets/textures/microbit/head_pressed.png" type="Texture" id=18]
+[ext_resource path="res://assets/textures/tape_texture.png" type="Texture" id=19]
+[ext_resource path="res://assets/textures/microbit/head_unpressed.png" type="Texture" id=20]
+[ext_resource path="res://assets/models/door.obj" type="ArrayMesh" id=21]
+
+[sub_resource type="BoxShape" id=1]
+extents = Vector3( 1.46019, 1, 1 )
+
+[sub_resource type="CubeMesh" id=2]
+
+[sub_resource type="BoxShape" id=3]
+extents = Vector3( 0.8, 0.8, 0.8 )
+
+[sub_resource type="Animation" id=6]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/path = NodePath("CollisionShape/DoorAnchor:rotation_degrees")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PoolRealArray( 0 ),
+"transitions": PoolRealArray( 1 ),
+"update": 0,
+"values": [ Vector3( 0, 0, 0 ) ]
+}
+tracks/1/type = "value"
+tracks/1/path = NodePath("../Microbit:self_modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/keys = {
+"times": PoolRealArray( 0 ),
+"transitions": PoolRealArray( 1 ),
+"update": 0,
+"values": [ Color( 1, 1, 1, 0 ) ]
+}
+
+[sub_resource type="Animation" id=8]
+resource_name = "fadein"
+tracks/0/type = "value"
+tracks/0/path = NodePath("../Microbit:self_modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PoolRealArray( 0, 1 ),
+"transitions": PoolRealArray( 1, 1 ),
+"update": 0,
+"values": [ Color( 1, 1, 1, 0 ), Color( 1, 1, 1, 1 ) ]
+}
+
+[sub_resource type="Animation" id=7]
+resource_name = "opendoor"
+tracks/0/type = "value"
+tracks/0/path = NodePath("CollisionShape/DoorAnchor:rotation_degrees")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PoolRealArray( 0, 1 ),
+"transitions": PoolRealArray( 1, 1 ),
+"update": 0,
+"values": [ Vector3( 0, 0, 0 ), Vector3( 0, -90, 0 ) ]
+}
+
+[sub_resource type="CapsuleMesh" id=9]
+radius = 0.2
+mid_height = 0.3
+
+[sub_resource type="SpatialMaterial" id=10]
+flags_transparent = true
+albedo_color = Color( 1, 1, 1, 0.564706 )
+
+[sub_resource type="TileSet" id=5]
+0/name = "microbit-light-red.png 0"
+0/texture = ExtResource( 10 )
+0/tex_offset = Vector2( 0, 0 )
+0/modulate = Color( 1, 1, 1, 1 )
+0/region = Rect2( 0, 0, 27, 29 )
+0/tile_mode = 0
+0/occluder_offset = Vector2( 0, 0 )
+0/navigation_offset = Vector2( 0, 0 )
+0/shape_offset = Vector2( 0, 0 )
+0/shape_transform = Transform2D( 1, 0, 0, 1, 0, 0 )
+0/shape_one_way = false
+0/shape_one_way_margin = 0.0
+0/shapes = [  ]
+0/z_index = 0
+1/name = "microbit-light-off.png 1"
+1/texture = ExtResource( 6 )
+1/tex_offset = Vector2( 0, 0 )
+1/modulate = Color( 1, 1, 1, 1 )
+1/region = Rect2( 1, -2, 25, 31 )
+1/tile_mode = 0
+1/occluder_offset = Vector2( 0, 0 )
+1/navigation_offset = Vector2( 0, 0 )
+1/shape_offset = Vector2( 0, 0 )
+1/shape_transform = Transform2D( 1, 0, 0, 1, 0, 0 )
+1/shape_one_way = false
+1/shape_one_way_margin = 0.0
+1/shapes = [  ]
+1/z_index = 0
+
+[node name="Main" type="Spatial"]
+script = ExtResource( 1 )
+
+[node name="CameraControl" type="Position3D" parent="."]
+script = ExtResource( 7 )
+
+[node name="Camera" type="Camera" parent="CameraControl"]
+transform = Transform( -0.006025, -0.456508, 0.889699, -0.00309138, 0.889719, 0.456498, -0.999977, 1.16418e-09, -0.0067718, 23.6781, 18.0844, 0 )
+
+[node name="Floor" type="StaticBody" parent="."]
+
+[node name="CollisionShape" type="CollisionShape" parent="Floor"]
+transform = Transform( 8.96054, 0, 0, 0, 1, 0, 0, 0, 14.6259, 0, 0, 0 )
+shape = SubResource( 1 )
+
+[node name="MeshInstance" type="MeshInstance" parent="Floor/CollisionShape"]
+transform = Transform( 1.5, 0, 0, 0, 0.8, 0, 0, 0, 1, 0, -9.53674e-07, 0 )
+mesh = SubResource( 2 )
+
+[node name="SafeBox" type="RigidBody" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 15.7102, 0 )
+
+[node name="CollisionShape" type="CollisionShape" parent="SafeBox"]
+transform = Transform( 4.56205, 0, 0, 0, 4.47055, 0, 0, 0, 4.6173, 0, 0, 0 )
+shape = SubResource( 3 )
+
+[node name="DoorAnchor" type="Position3D" parent="SafeBox/CollisionShape"]
+transform = Transform( 0.995214, 0, 0, 0, 1, 0, 0, 0, 1.0049, 0.792158, 0, -0.580125 )
+
+[node name="door" type="MeshInstance" parent="SafeBox/CollisionShape/DoorAnchor"]
+transform = Transform( 0.2192, 0, 0, 0, 0.223686, 0, 0, 0, 0.216577, -0.847255, -0.0998623, 0.430994 )
+mesh = ExtResource( 21 )
+skeleton = NodePath("../../../..")
+material/0 = ExtResource( 8 )
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="SafeBox"]
+anims/RESET = SubResource( 6 )
+anims/fadein = SubResource( 8 )
+anims/opendoor = SubResource( 7 )
+
+[node name="LED" type="MeshInstance" parent="SafeBox"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 3.10703, 3.23042, -3.82114 )
+mesh = SubResource( 9 )
+material/0 = SubResource( 10 )
+
+[node name="OmniLight" type="OmniLight" parent="SafeBox/LED"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.43051e-06, -0.662323 )
+light_color = Color( 0.0156863, 0.956863, 0.160784, 1 )
+light_energy = 0.0
+
+[node name="safebox" parent="SafeBox" instance=ExtResource( 2 )]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.12, -0.35, -0.7 )
+
+[node name="Microbit" type="Control" parent="."]
+visible = false
+self_modulate = Color( 1, 1, 1, 0 )
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource( 14 )
+
+[node name="Base" type="TextureRect" parent="Microbit"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+texture = ExtResource( 16 )
+expand = true
+
+[node name="LEDDisplay" type="TileMap" parent="Microbit"]
+position = Vector2( 402, 186 )
+tile_set = SubResource( 5 )
+cell_size = Vector2( 50, 50 )
+format = 1
+tile_data = PoolIntArray( 0, 1, 0, 1, 1, 0, 2, 1, 0, 3, 1, 0, 4, 1, 0, 65536, 1, 0, 65537, 1, 0, 65538, 1, 0, 65539, 1, 0, 65540, 1, 0, 131072, 1, 0, 131073, 1, 0, 131074, 1, 0, 131075, 1, 0, 131076, 1, 0, 196608, 1, 0, 196609, 1, 0, 196610, 1, 0, 196611, 1, 0, 196612, 1, 0, 262144, 1, 0, 262145, 1, 0, 262146, 1, 0, 262147, 1, 0, 262148, 1, 0 )
+
+[node name="ButtonA" type="TextureButton" parent="Microbit"]
+margin_left = 225.0
+margin_top = 250.0
+margin_right = 297.0
+margin_bottom = 322.0
+rect_pivot_offset = Vector2( 103, 36 )
+texture_normal = ExtResource( 15 )
+texture_pressed = ExtResource( 5 )
+
+[node name="ButtonB" type="TextureButton" parent="Microbit"]
+margin_left = 725.0
+margin_top = 250.0
+margin_right = 797.0
+margin_bottom = 322.0
+rect_pivot_offset = Vector2( 36, 52 )
+texture_normal = ExtResource( 15 )
+texture_pressed = ExtResource( 5 )
+
+[node name="ButtonAAndB" type="TextureButton" parent="Microbit"]
+margin_left = 725.0
+margin_top = 360.0
+margin_right = 797.0
+margin_bottom = 432.0
+rect_pivot_offset = Vector2( 36, 52 )
+texture_normal = ExtResource( 15 )
+texture_pressed = ExtResource( 5 )
+
+[node name="Label" type="Label" parent="Microbit/ButtonAAndB"]
+margin_left = 18.0
+margin_top = -10.0
+margin_right = 58.0
+margin_bottom = 4.0
+text = "A + B"
+
+[node name="SFX" type="Control" parent="Microbit"]
+margin_right = 40.0
+margin_bottom = 40.0
+
+[node name="Success" type="AudioStreamPlayer" parent="Microbit/SFX"]
+stream = ExtResource( 17 )
+volume_db = -0.5
+
+[node name="Closed" type="AudioStreamPlayer" parent="Microbit/SFX"]
+stream = ExtResource( 11 )
+volume_db = -0.5
+
+[node name="Action" type="AudioStreamPlayer" parent="Microbit/SFX"]
+stream = ExtResource( 9 )
+volume_db = -0.5
+
+[node name="NotAvailable" type="AudioStreamPlayer" parent="Microbit/SFX"]
+stream = ExtResource( 3 )
+volume_db = -0.5
+
+[node name="Alarm" type="AudioStreamPlayer" parent="Microbit/SFX"]
+stream = ExtResource( 4 )
+autoplay = true
+stream_paused = true
+
+[node name="ButtonClose" type="Button" parent="Microbit"]
+margin_left = 823.0
+margin_top = 513.0
+margin_right = 1004.0
+margin_bottom = 579.0
+text = "Back To Simulation"
+icon = ExtResource( 19 )
+expand_icon = true
+
+[node name="ButtonHead" type="TextureButton" parent="Microbit"]
+margin_left = 454.0
+margin_top = 82.0
+margin_right = 528.0
+margin_bottom = 124.0
+rect_scale = Vector2( 1.6, 1.6 )
+texture_normal = ExtResource( 20 )
+texture_pressed = ExtResource( 18 )
+
+[node name="MainUI" type="Control" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="ButtonOpen" type="Button" parent="MainUI"]
+margin_left = 823.0
+margin_top = 513.0
+margin_right = 1004.0
+margin_bottom = 579.0
+text = "Open Control Panel"
+icon = ExtResource( 13 )
+expand_icon = true
+
+[node name="ButtonMove" type="Button" parent="MainUI"]
+margin_left = 823.0
+margin_top = 440.0
+margin_right = 1004.0
+margin_bottom = 506.0
+text = "Move SafeBox"
+icon = ExtResource( 12 )
+expand_icon = true
+
+[connection signal="alarm_on" from="." to="Microbit" method="_on_Main_alarm_on"]
+[connection signal="close_door" from="Microbit" to="." method="_on_Microbit_close_door"]
+[connection signal="open_door" from="Microbit" to="." method="_on_Microbit_open_door"]
+[connection signal="pressed" from="Microbit/ButtonA" to="Microbit" method="_on_ButtonA_pressed"]
+[connection signal="pressed" from="Microbit/ButtonB" to="Microbit" method="_on_ButtonB_pressed"]
+[connection signal="pressed" from="Microbit/ButtonAAndB" to="Microbit" method="_on_ButtonAAndB_pressed"]
+[connection signal="pressed" from="Microbit/ButtonClose" to="." method="_on_ButtonClose_pressed"]
+[connection signal="button_down" from="Microbit/ButtonHead" to="Microbit" method="_on_ButtonHead_button_down"]
+[connection signal="button_up" from="Microbit/ButtonHead" to="Microbit" method="_on_ButtonHead_button_up"]
+[connection signal="pressed" from="MainUI/ButtonOpen" to="." method="_on_ButtonOpen_pressed"]
+[connection signal="pressed" from="MainUI/ButtonMove" to="." method="_on_ButtonMove_pressed"]
