@@ -8,4 +8,5 @@ pub mod core;
 
 pub mod feeders;
 
-pub use crossterm::event::Event;
+pub use crossterm::event::*;
+pub use crossterm::style::*;

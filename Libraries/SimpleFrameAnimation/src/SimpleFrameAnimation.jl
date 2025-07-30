@@ -69,7 +69,7 @@ end
 
 function cycle!(collection::AnimationCollection{T, U}, framenumber::Signed = 1) where {T, U}
     animation = collection.animations[collection.current]
-    update!(animation, framenumber)
+    cycle!(animation, framenumber)
 end
 
 function current(animation::Animation{T})::T where T
@@ -91,7 +91,7 @@ end
 
 function current(sprite::AnimationCollection{T, U})::T where {T, U}
     animation = sprite.animations[sprite.current]
-    return get(animation)
+    return current(animation)
 end
 
 end # module SimpleFrameAnimation
