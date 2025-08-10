@@ -1,0 +1,6 @@
+[deps]
+Luxor = "ae8d54c2-7ccd-5906-9d76-62fc9837b5bc"
+SimpleFrameAnimation = "738973a0-599d-401e-9b04-a03c1da0067d"
+
+[sources]
+SimpleFrameAnimation = {rev = "main", subdir = "Libraries/SimpleFrameAnimation", url = "https://github.com/The-Nice-One/PlaygroundProjects"}
