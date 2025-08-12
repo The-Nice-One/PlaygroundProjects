@@ -1,0 +1,914 @@
+picotron cartridge // www.picotron.net
+version 2
+
+:: gfx/
+:: gfx/0.gfx
+b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTAxLTE3IDEwOjM1OjQ4Iixtb2RpZmllZD0iMjAyNS0w
+OC0wMiAxNDoyOTozOSIscmV2aXNpb249MTBdXWx6NACEAQAA6DMAAPMhe1swXT17Ym1wPXB4dQBD
+IBAQBPBWBxAHwBfQF8AHEAfwVixmbGFncz0wLHBhbl94CADaeT0wLHpvb209MTF9LD8A8Q9APw8Z
+cB5aGUAOmgkgDroJEA66CQAOSjlKCQ5KCXoFAHYPGQlKCXoNBQD-CAAJOhkdOg0QCboNIAmaDUAZ
+Wh1wGT1AewAdKgABAgA68AABAgBP8AIBACIAUB8BuQAdXwzvEAzuAgAJD1EAHQ9QAA0fDFEAHV-8
+AP8Q4DUAHV--EOD8AAwBOI8ADN4QDM4gzA4BOI-eDADODBDMIFMAHb8gzBAMzxAADN4M7rQBNb-M
+IM8QDBDeDADuDLYBNfUB8BKfDz8WAA8P0A7gDxbgDQIAnwXwAAXwANXwEFIAGvcCCAgE8ACMAAwP
+EAAOAAwQDA4HAG8gPEAMAAzuAQ0dNqIAH-CCAA0PMgD---------------------------------
+-----------------------------11QPTExfX0=
+:: gfx/.info.pod
+b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTA3LTE5IDEzOjMyOjM1Iixtb2RpZmllZD0iMjAyNS0w
+OC0xMSAxODoxMDozOSJdXQ==
+:: map/
+:: map/0.map
+b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTAxLTE3IDEwOjM1OjQ4Iixtb2RpZmllZD0iMjAyNS0w
+Ny0zMSAxNzowNjowMCIscmV2aXNpb249NV1dbHo0ALAAAAB3EAAA8Ah7e2JtcD11c2VyZGF0YSgi
+aTE2IiwzMgMAXyIwMDAyBAD--V85MDAwNQQABBdhKAAPQABFFzMMAAwEABc0DAAPQAD--8dfNzAw
+MDYEAAQXOCgAD0AAJg8EAP------------8D9QwiKSxoaWRkZW49ZmFsc2UscGFuX3g9LTIxLjYB
+ABE3FgB2eT0tMTguMwEAoix0aWxlX2g9MTYKABB3CgCwem9vbT0wLjI1fX0=
+:: map/.info.pod
+b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTA3LTE5IDEzOjMyOjM1Iixtb2RpZmllZD0iMjAyNS0w
+OC0xMSAxODoxMDozOSJdXQ==
+:: sfx/
+:: sfx/0.sfx
+b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTAxLTE3IDEwOjM1OjQ5Iixtb2RpZmllZD0iMjAyNS0w
+OC0wMiAxOTowMjoyNiIscmV2aXNpb249MTVdXWx6NACIAgAA3AsAAP8wcHh1AAMoAAAEAAQPQBAC
+DgABoAEgAqAOAA8QAA3wygECA0APD5AEBQYHQAyQCAkKC0AMkA8MDw0PDgxADPD-AQDr8COqARAG
+DyAQASABIAHwAAIQAg4QASAPISABMA9A8MMPKA--8MYP_AoP-w_AD-cPDQHwCTEAHCgxAPgVJQAP
+lgABMA9BkAEKEAQPzg9mEA-CIA9FIA82AA9g8KUPHPDHRwDwC3APcA9iDzIPbg9vD2QPZQ8tD2sP
+aQ9jD2tAXwAWJV8AYAYPIw8cEZIA-x4FD9MAAQQPQQ8ngA8RAhAEDzIPEgEwAgEQASAED0APGgHw
+oQ8dD0AB8AUG8K9sAAvgbQ9hD3IPaQ9tD2IPYRByABgfcgAzHg8icgAQHHIA-wmDDz8BcAEIEAQP
+PA_PAfCxDyoPJwnwBQlmAA0RaGYAEXDSAJgYEAEgBQAP4AA0AbACD_8RIAQPxQ_ugF8AEgBeAG8X
+AATwBQddAA1pdA9vD21QLQEjDxJZAJEhIAEgDxAP-5C1AP8EGA9OAAQPQg_l8K4PDQAE8MMBALgA
+DRFpvAAkdDC6AKYBIAUPGQ-iAcACYgBxEAEED_APwLoA-wEID1Twsg8tD4kEsAGgCvCsYAAL0DYP
+NA9wD3UPbA9zD2V_ARQOwgAPfwIRDzAA-----3Af-wEArPMFyA9AAA8QQA82--8vAf0vDv0v8HAT
+AEoo-S8EEgBKMf0vBRIASTT9LwYSACH9sBMBE0wgAPEaMw0DDQMNLzENKw0PMA0-Jw0vJQ0vMA0-
+KP0PDwMNDA0MDSwNLA0MDTwIAFA8-Q8ODQIAcS4NLg0ODT4IADs_-Q9dAAEBAB5xEwAPAQD-zFD-
+----Sw==
+:: sfx/.info.pod
+b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTA3LTE5IDEzOjMyOjM1Iixtb2RpZmllZD0iMjAyNS0w
+OC0xMSAxODoxMDozOSJdXQ==
+:: collisions.lua
+--[[pod_format="raw",created="2025-08-01 00:30:47",modified="2025-08-11 18:09:06",revision=12]]
+function check_bounded_collision(collider1, collider2)
+	return collider1.left < collider2.right and
+		collider1.right > collider2.left and
+		collider1.top < collider2.bottom and
+		collider1.bottom > collider2.top
+end
+
+function draw_bounded_collider(collider, collider_color)
+	if (not Debug.enabled) return
+	local collider_color = collider_color or 10
+	rect(collider.left, collider.top, collider.right, collider.bottom, collider_color)
+end
+:: debug.lua
+--[[pod_format="raw",created="2025-07-31 21:22:25",modified="2025-08-11 18:07:55",revision=11]]
+function init_debug()
+	Debug = {}
+	Debug.enabled = false
+end
+
+function update_debug()
+	if (keyp("tab")) Debug.enabled = not Debug.enabled
+end
+
+function draw_debug()
+	if (Debug.enabled) then
+		-- Repositions the print cursor at the top-left corner
+		print("\0", 0, 0)
+		
+		print("Time: " .. flr(t()) .. " seconds", 29)
+		print("Mouse: X: " .. mouse_x .. ", Y: " .. mouse_y, 29)
+	end
+end
+:: drops.lua
+--[[pod_format="raw",created="2025-08-11 18:01:12",modified="2025-08-11 18:10:39",revision=3]]
+function init_drops()
+	spawned_coins = {}
+	spawned_health = {}
+end
+
+function spawn_drop(x, y, amount)
+	if (rnd(1) < 0.01) then spawn_health(x, y) else spawn_coin(x, y, amount) end
+end
+
+function spawn_coin(x, y, amount)
+	spawned_coins[#spawned_coins + 1] = {
+		x = x,
+		y = y,
+		amount = amount,
+		
+		t_offset = t() - flr(t()),
+		
+		collider = {
+			left = x-2,
+			right = x+2,
+			top = y-2,
+			bottom = y+2
+		}
+	}
+end
+
+function spawn_health(x, y)
+	spawned_health[#spawned_health + 1] = {
+		x = x,
+		y = y,
+		
+		t_offset = t() - flr(t()),
+		
+		collider = {
+			left = x-2,
+			right = x+2,
+			top = y-2,
+			bottom = y+2
+		}
+	}
+end
+
+function update_drops()
+	for i = #spawned_coins, 1, -1 do
+		if (check_bounded_collision(spawned_coins[i].collider, Player.collider)) then
+			coins += spawned_coins[i].amount
+			sfx(3)
+			deli(spawned_coins, i)
+		end
+	end
+	for i = #spawned_health, 1, -1 do
+		if (check_bounded_collision(spawned_health[i].collider, Player.collider)) then
+			if (Player.health != Player.max_health) Player.health += 1
+			sfx(3)
+			deli(spawned_health, i)
+		end
+	end
+end
+
+function draw_drops()
+	for i = 1, #spawned_coins do
+		local coin = spawned_coins[i]
+		local animation_time = t() - flr(t()) + spawned_coins[i].t_offset
+		if (animation_time > 1) animation_time -= 1
+		if (animation_time < 0.5) then
+			ovalfill(coin.x-1, coin.y-2, coin.x+1, coin.y+2, 10)
+			oval(coin.x-1, coin.y-2, coin.x+1, coin.y+2, 9)
+		else
+			circfill(spawned_coins[i].x, spawned_coins[i].y, 2, 10)
+			circ(spawned_coins[i].x, spawned_coins[i].y, 2, 9)
+		end
+	end
+	for i = 1, #spawned_health do
+		local health = spawned_health[i]
+		local animation_time = t() - flr(t()) + health.t_offset
+		if (animation_time > 1) animation_time -= 1
+		if (animation_time < 0.5) then
+			ovalfill(health.x-1, health.y-2, health.x+1, health.y+2, 8)
+			oval(health.x-1, health.y-2, health.x+1, health.y+2, 24)
+		else
+			circfill(health.x, health.y, 2, 8)
+			circ(health.x, health.y, 2, 24)
+		end
+	end
+end
+:: enemies.lua
+--[[pod_format="raw",created="2025-07-31 21:24:54",modified="2025-08-11 18:09:51",revision=101]]
+function init_enemies()
+	enemies = {}
+	enemies_started = t()
+	enemies_spawn_rate = 14
+	enemies_spawn_last_time = 0
+	
+	enemies_spawn_time = 1
+	enemies_spawn_modifier = 0
+	enemies_health_modifier = 0
+end
+
+function update_enemy_spawns()
+	if (Ui.tutorial_stage != 4) then 
+		enemies_started = t()
+		enemies_spawn_last_time = t() - enemies_spawn_rate / 2
+	end
+	
+	enemies_spawn_rate = 14 - (sqrt(t() - enemies_started)/1.9)
+	if (enemies_spawn_rate < 3.8) enemies_spawn_rate = 3.8
+	
+	enemies_health_modifier = math.log(score+1)^2
+	enemies_spawn_modifier = (math.log(score+1)^2)/14
+	
+	enemies_spawn_time = 1 - (sqrt(score+1)/100)
+	if (enemies_spawn_time < 0.1) enemies_spawn_time = 0.1
+	
+
+	if ( (t() - enemies_spawn_last_time) >= enemies_spawn_rate - rnd(enemies_spawn_modifier) ) then
+		enemies_spawn_last_time = t()
+		spawn_enemy(flr(rnd(480)), flr(rnd(270)), 4, 3+ceil(rnd(enemies_health_modifier)), enemies_spawn_time)
+	end
+end
+
+function spawn_enemy(x, y, radius, health, spawn_time)
+	local radius = radius+flr((health)/6)
+	enemies[#enemies+1] = {
+		x = x,
+		y = y,
+		radius = radius,
+		
+		health = health,
+		max_health = health,
+		
+		spawn_time = t()+spawn_time,
+		spawned = false,
+		spawn_rnd = rnd(100),
+		
+		collider = {
+			left = x - radius,
+			right = x + radius,
+			top = y - radius,
+			bottom = y + radius
+		}
+	}
+end
+
+function update_enemies()
+	for i = 1, #enemies do
+		if (not enemies[i].spawned) then
+			if (t() >= enemies[i].spawn_time) enemies[i].spawned = true
+		else
+			slope_x = x - enemies[i].x
+			slope_y = y - enemies[i].y
+		
+			magnitude = sqrt(slope_x^2 + slope_y^2)
+		
+			slope_x /= magnitude
+			slope_y /= magnitude
+		
+			enemies[i].x += slope_x
+			enemies[i].y += slope_y
+		
+			enemies[i].collider.left += slope_x
+			enemies[i].collider.right += slope_x
+			enemies[i].collider.top += slope_y
+			enemies[i].collider.bottom += slope_y
+		end
+	end
+end
+
+function damage_enemy(index, damage)
+	enemies[index].health -= damage
+	if (enemies[index].health <= 0) then
+		score += enemies[index].max_health
+		spawn_drop(enemies[index].x, enemies[index].y, enemies[index].max_health)
+		deli(enemies, index)
+	end
+end
+
+function draw_enemies()
+	for i = 1, #enemies do
+		if (enemies[i].spawned) then
+			circfill(enemies[i].x, enemies[i].y, enemies[i].radius, 2)
+			circ(enemies[i].x, enemies[i].y, enemies[i].radius, 8)
+			draw_bounded_collider(enemies[i].collider)
+		
+			if (enemies[i].health != enemies[i].max_health) then 
+				draw_bar(enemies[i].x, 
+					enemies[i].y-(enemies[i].radius-4), 
+					enemies[i].radius*2+1,
+					3,
+					enemies[i].health,
+					enemies[i].max_health, "red")
+			end
+		else
+			circfill(enemies[i].x, enemies[i].y, enemies[i].radius, 2)
+		end
+	end
+end
+:: health_bars.lua
+--[[pod_format="raw",created="2025-08-01 01:15:24",modified="2025-08-02 19:14:07",revision=43]]
+function draw_bar(x, y, width, height, health, max_health, color_set)
+	if (health > max_health) health = max_health
+	percentage_health = (100 / max_health) * health
+	filled_pixels = (width / max_health) * health
+	
+	local used_color = nil
+	if (color_set == "blue") then
+		used_color = 28
+		if (percentage_health < 68) used_color = 12
+		if (percentage_health < 34) used_color = 16
+	elseif (color_set == "red") then
+		used_color = 8
+		if (percentage_health < 68) used_color = 24
+		if (percentage_health < 34) used_color = 2
+	elseif (color_set == "white") then
+		used_color = 7
+		if (percentage_health < 68) used_color = 6
+		if (percentage_health < 34) used_color = 5
+	elseif (color_set == "green") then
+		used_color = 11
+		if (percentage_health < 68) used_color = 27
+		if (percentage_health < 34) used_color = 3
+	elseif (color_set == "orange") then
+		used_color = 31
+		if (percentage_health < 68) used_color = 4
+		if (percentage_health < 34) used_color = 20
+	end
+	
+
+	rrectfill(x-width/2, y-height-5, filled_pixels, height, 2, used_color)
+	rrect(x-width/2, y-height-5, width, height, 2, 0)
+end
+:: main.lua
+--[[pod_format="raw",created="2025-07-30 22:25:00",modified="2025-08-11 18:06:50",revision=278]]
+include("utilities.lua")
+
+include("player.lua")
+include("projectiles.lua")
+include("debug.lua")
+
+include("drops.lua")
+include("enemies.lua")
+
+include("health_bars.lua")
+include("collisions.lua")
+
+include("ui.lua")
+
+function _init()
+	mouse_x, mouse_y, mouse_b = mouse()
+	mouse_p, mouse_lock = false, false
+	init_player()
+	init_projectiles()
+	init_debug()
+	
+	init_drops()
+	init_enemies()
+	
+	init_ui()
+	
+	-- Some defined constants :)
+	degree = 1/360
+	
+	-- Main game info
+	x = 100
+	y = 100
+	coins = 275
+	score = 0
+end
+
+function draw_map()
+	local current_x = 0
+	local current_y = 0
+	
+	for current_x = 0, 480, 16 do
+	   for current_y = 0, 270, 16 do
+			spr(2, current_x, current_y)
+		end
+	end
+end
+
+function update_mouse_p()
+	if (mouse_b == 0x1 and not mouse_p and not mouse_lock) then
+		mouse_lock = true
+		mouse_p = true
+	elseif (mouse_b == 0x1 and mouse_p) then mouse_p = false
+	elseif (mouse_b != 0x1 and mouse_lock) then mouse_lock = false end
+end
+
+function _update()
+	mouse_x, mouse_y, mouse_b = mouse()
+	update_mouse_p()
+	
+	if (Player.health > 0) then
+		update_enemy_spawns()
+		update_enemies()
+		update_projectiles()
+		update_drops()
+		update_player_angle()
+		update_player_position()
+		update_player_attack()
+		update_ui()
+	else
+		Ui.tutorial_stage = 5
+	end
+	
+	update_debug()
+end
+
+function _draw()
+	cls()
+	draw_map()
+	draw_drops()
+	draw_enemies()
+	draw_projectiles()
+	draw_player()
+	draw_ui()
+	draw_debug()
+end
+:: player.lua
+--[[pod_format="raw",created="2025-07-31 21:20:55",modified="2025-08-11 18:07:24",revision=110]]
+function init_player()
+	Player = {}
+	Player.sides = 3
+	Player.points = {}
+	Player.radius = 8
+	
+	Player.speed = 3
+	Player.projectile_damage = 1
+	Player.projectile_speed = 3
+	Player.projectile_pierce = 1
+	
+	Player.attack_speed = 1
+	Player.attack_last_time = -1
+	
+	Player.attack_sides = {1}
+	Player.attacks_per_fire = 1
+	
+	Player.auto_fire = false
+	
+	Player.health = 6
+	Player.max_health = 6
+	
+	Player.collider = {
+		left = 100 - Player.radius,
+		right = 100 + Player.radius,
+		top = 100 - Player.radius,
+		bottom = 100 + Player.radius
+	}
+end
+
+function update_player_position()
+	movement_vector = {
+		x = ((btn(1) or key("d")) and 1 or 0) - ((btn(0) or key("a")) and 1 or 0),
+		y = ((btn(3) or key("s")) and 1 or 0) - ((btn(2) or key("w")) and 1 or 0)
+	}
+	if (movement_vector.x == 0 and movement_vector.y == 0) return
+	
+	magnitude = sqrt(movement_vector.x^2 + movement_vector.y^2)
+	movement_vector.x /= magnitude
+	movement_vector.y /= magnitude
+	x += movement_vector.x*Player.speed
+	y += movement_vector.y*Player.speed
+	
+	if (x - Player.radius < 0) then
+		x = Player.radius
+	end
+	if (x + Player.radius > 480) then
+		x = 480 - Player.radius
+	end
+	if (y + Player.radius > 260) then
+		y = 260 - Player.radius
+	end
+	if (y - Player.radius < 0) then
+		y = Player.radius
+	end
+	
+	Player.collider = {
+		left = x - Player.radius,
+		right = x + Player.radius,
+		top = y - Player.radius,
+		bottom = y + Player.radius
+	}
+end
+
+function update_player_attack()
+	if ( btn(4) or keyp("q") ) Player.auto_fire = not Player.auto_fire
+	
+	if ( (btn(5) or key("space") or Player.auto_fire) and ( (t() - Player.attack_last_time) >= Player.attack_speed) ) then
+		Player.attack_last_time = t()
+		for i = 1, #Player.attack_sides do
+			shoot_side(Player.attack_sides[i])
+		end
+		
+		if (Player.attacks_per_fire >= Player.sides) then
+			Player.attack_sides = {}
+			for i = 1, Player.sides do
+				add(Player.attack_sides, i)
+			end
+		else
+			local current_last_side = Player.attack_sides[1]
+			Player.attack_sides = {}
+			for i = current_last_side+1, Player.attacks_per_fire + current_last_side do
+				add(Player.attack_sides, i)
+			end
+			
+			for i = 1, #Player.attack_sides do
+				if (Player.attack_sides[i] > Player.sides) Player.attack_sides[i] -= Player.sides
+			end
+		end
+	end
+end
+
+function update_player_angle()
+	for i = #enemies, 1, -1 do
+		if (check_bounded_collision(Player.collider, enemies[i].collider) and enemies[i].spawned) then
+			sfx(2)
+			Player.health -= 1
+			deli(enemies, i)
+		end
+	end
+	
+	-- Subtract from y, because (0, 0) is located at top-left.
+	local y_difference = y - mouse_y
+	local x_difference = mouse_x - x
+	-- Add 90 to offset the angle correctly from rightmost position of circle; (1, 0)
+	local angle = atan2(y_difference, x_difference)*360+90
+	
+	local angle_increment = 360 / Player.sides
+	
+	for side_number = 1, Player.sides, 1 do
+		Player.points[side_number] = {
+			x = x + flr(cos(degree*(angle_increment*(side_number-1)+angle))*Player.radius),
+			y = y + flr(sin(degree*(angle_increment*(side_number-1)+angle))*Player.radius)
+		}
+	end
+end
+
+function draw_player()
+	draw_bounded_collider(Player.collider)
+
+	if (Player.auto_fire) print("Autofire Enabled")
+	color(12)
+	for i = 1, #Player.points do
+		local used_color = 16
+		if (contains(Player.attack_sides, i)) used_color = 28
+		
+		if (i == #Player.points) then
+			line(Player.points[i].x, Player.points[i].y, Player.points[1].x, Player.points[1].y, used_color)
+	   else
+	   	line(Player.points[i].x, Player.points[i].y, Player.points[i+1].x, Player.points[i+1].y, used_color)
+	  	end
+	end
+	
+	draw_bar(x+1, y-8, Player.radius*2+1, 4, Player.health, Player.max_health, "blue")
+	draw_bar(x+1, y-6, Player.radius*2+1, 3, t() - Player.attack_last_time, Player.attack_speed, "white")
+end
+:: projectiles.lua
+--[[pod_format="raw",created="2025-07-31 21:21:19",modified="2025-08-11 18:06:21",revision=80]]
+function init_projectiles()
+	projectiles = {}
+end
+
+function shoot_side(side_index)
+	sfx(0)
+	
+	local point1_index = side_index
+	local point2_index = side_index + 1
+	if (side_index == Player.sides) point2_index = 1
+	
+	local point1_x = Player.points[point1_index].x
+	local point2_x = Player.points[point2_index].x
+	local point1_y = Player.points[point1_index].y
+	local point2_y = Player.points[point2_index].y
+	
+	local slope_x, slope_y = 0, 0
+	-- Correctly calculates the slope
+	if point2_x >= point1_x then
+		slope_x, slope_y = point2_x - point1_x, point1_y - point2_y
+	else
+		slope_x, slope_y = point1_x - point2_x, point1_y - point2_y
+	end
+	
+	-- Negative reciprocal for y is positive 1 because of Picotron's coordinate system
+	local neg_x, neg_y = -1, 1
+	-- Only calculate the negative reciprocal if the slope is not 0
+	if (slope_x != 0) then
+		neg_x = -(1.0 / slope_x)
+	end
+	if (slope_y != 0) then
+		neg_y =  -(1.0 / slope_y)
+	end
+	
+	-- Some patches in order to ensure the projectiles are moveing the correct direction
+	if (point1_y > point2_y) then
+		neg_y *= -1
+		neg_x *= -1
+	end
+	if (point2_x < point1_x) then
+		neg_y *= -1
+	end
+	
+	local magnitude = sqrt(neg_x^2 + neg_y^2)
+	
+	local point1_collider_x = point1_x
+	local point1_collider_y = point1_y
+	local point2_collider_x = point2_x
+	local point2_collider_y = point2_y
+	
+	if (point1_x > point2_x) then
+		point1_collider_x = point2_x
+		point2_collider_x = point1_x
+	end
+	
+	if (point2_y > point1_y) then
+		point1_collider_y = point2_y
+		point2_collider_y = point1_y
+	end
+	
+	projectiles[#projectiles+1] = {
+		point1 = {
+			x = point1_x,
+			y = point1_y
+		},
+		point2 = {
+			x = point2_x,
+			y = point2_y
+		},
+		x_change = neg_x / magnitude,
+		y_change = neg_y / magnitude,
+		collider = {
+			left = point1_collider_x,
+			right = point2_collider_x,
+			top = point2_collider_y,
+			bottom = point1_collider_y
+		},
+		pierce = Player.projectile_pierce,
+		enemies_attacked = {},
+		damage = Player.projectile_damage
+	}
+end
+
+function update_projectiles()
+	for i = #projectiles, 1, -1 do
+		calculated_x_change = projectiles[i].x_change * Player.projectile_speed
+		calculated_y_change = projectiles[i].y_change * Player.projectile_speed
+		
+		projectiles[i].point1.x += calculated_x_change
+		projectiles[i].point2.x += calculated_x_change
+		
+		projectiles[i].point1.y += calculated_y_change
+		projectiles[i].point2.y += calculated_y_change
+		
+		projectiles[i].collider.left += calculated_x_change
+		projectiles[i].collider.right += calculated_x_change
+		projectiles[i].collider.top += calculated_y_change
+		projectiles[i].collider.bottom += calculated_y_change
+		
+		if (projectiles[i].collider.bottom < 0 or
+			projectiles[i].collider.top > 270 or
+			projectiles[i].collider.left < 0 or
+			projectiles[i].collider.right > 470) then
+			deli(projectiles, i)
+		else
+			for j = #enemies, 1, -1 do
+				if (check_bounded_collision(projectiles[i].collider, enemies[j].collider)
+					and enemies[j].spawned
+					and not contains(projectiles[i].enemies_attacked, enemies[j].spawn_rnd)) then
+					sfx(1)
+					add(projectiles[i].enemies_attacked, enemies[j].spawn_rnd)
+					damage_enemy(j, projectiles[i].damage)
+					projectiles[i].pierce -= 1
+					if (projectiles[i].pierce < 1) then
+						deli(projectiles, i)
+						break
+					end
+				end
+			end
+		end
+	end
+end
+
+function draw_projectiles()
+	color(28)
+	for i = 1, #projectiles do
+		draw_bounded_collider(projectiles[i].collider)
+		line(projectiles[i].point1.x, projectiles[i].point1.y, projectiles[i].point2.x, projectiles[i].point2.y, 28)
+	end
+end
+:: ui.lua
+--[[pod_format="raw",created="2025-08-02 13:14:24",modified="2025-08-02 21:10:23",revision=157]]
+function init_ui()
+	Ui = {
+		tutorial_stage = 0,
+		buttons = {},
+		shop_open = false,
+		upgrades = {
+			{name = "Player Sides", level=1, base_cost=5, col=12},
+			{name = "Player Health", level=1, base_cost=5, col=12},
+			{name = "Player Speed", level=1, base_cost=5, col=12},
+			
+			{name = "Projectile Damage", level=1, base_cost=5, col=8},
+			{name = "Projectile Pierce", level=1, base_cost=5, col=8},
+			{name = "Projectile Speed", level=1, base_cost=5, col=8},
+		
+			{name = "Attack Reload", level=1, base_cost=5, col=11},
+			{name = "Attack Sides", level=1, base_cost=5, col=11},
+			
+			{name = "Radius", level=1, base_cost=5, col=31},
+		}
+	}
+	mouse_collider = {
+		left = mouse_x-1,
+		right = mouse_x + 4,
+		top = mouse_y-1,
+		bottom = mouse_y + 2
+	}
+	new_button(474, 261, 3, 8, "^", 7, "shop")
+	local current_y = 158
+	for i = 1, #Ui.upgrades do
+		current_y += 10
+		new_button(473, current_y, 5, 8, "+", 7, Ui.upgrades[i].name)
+	end
+end
+
+function new_button(x, y, width, height, text, col, id)
+	add(Ui.buttons, {
+		x = x,
+		y = y,
+		width = width,
+		height = height,
+		text = text,
+		col = col,
+		collider = {
+			left = x,
+			right = x + width,
+			top = y,
+			bottom = y + height
+		},
+		id = id
+	})
+end
+
+function upgrade(id, index)
+	local button = Ui.buttons[index]
+	local upgrade = Ui.upgrades[index-1]
+	if (upgrade.level == 6) return
+	local upgrade_cost = calculate_cost(upgrade.base_cost, upgrade.level)
+	print(id, 100, 100)
+	if (id == "Player Sides" and coins >= upgrade_cost) then
+		Player.sides += 1
+		upgrade.level += 1
+		coins -= upgrade_cost
+	end
+	if (id == "Player Health" and coins >= upgrade_cost) then
+		Player.max_health += 1
+		Player.health = Player.max_health
+		upgrade.level += 1
+		coins -= upgrade_cost
+	end
+	if (id == "Player Speed" and coins >= upgrade_cost) then
+		Player.speed += 0.3
+		upgrade.level += 1
+		coins -= upgrade_cost
+	end
+	
+	if (id == "Projectile Damage" and coins >= upgrade_cost) then
+		Player.projectile_damage += 1
+		upgrade.level += 1
+		coins -= upgrade_cost
+	end
+	if (id == "Projectile Pierce" and coins >= upgrade_cost) then
+		Player.projectile_pierce += 1
+		upgrade.level += 1
+		coins -= upgrade_cost
+	end
+	if (id == "Projectile Speed" and coins >= upgrade_cost) then
+		Player.projectile_speed += 1
+		upgrade.level += 1
+		coins -= upgrade_cost
+	end
+	
+	if (id == "Attack Reload" and coins >= upgrade_cost) then
+		Player.attack_speed -= 0.15
+		upgrade.level += 1
+		coins -= upgrade_cost
+	end
+	if (id == "Attack Sides" and coins >= upgrade_cost) then
+		Player.attacks_per_fire += 1
+		upgrade.level += 1
+		coins -= upgrade_cost
+	end
+	if (id == "Radius" and coins >= upgrade_cost) then
+		Player.radius += 1
+		upgrade.level += 1
+		coins -= upgrade_cost
+	end
+end
+
+function update_buttons()
+	for i = 1, #Ui.buttons do
+		if check_bounded_collision(mouse_collider, Ui.buttons[i].collider) then
+			Ui.buttons[i].col = 6
+			if (Ui.buttons[i].id == "shop" and mouse_p) then
+				Ui.shop_open = not Ui.shop_open
+				if (Ui.tutorial_stage == 3) then
+					Ui.tutorial_stage = 4
+				end
+				if (Ui.tutorial_stage == 2) then
+					Ui.tutorial_stage = 3
+				end
+			elseif (mouse_p) then
+				upgrade(Ui.buttons[i].id, i)
+			end
+		else
+			Ui.buttons[i].col = 7
+			if (i > 1 and Ui.upgrades[i-1].level == 6) Ui.buttons[i].col = 6
+		end
+	end
+end
+
+function update_ui()
+	mouse_collider = {
+		left = mouse_x-1,
+		right = mouse_x + 4,
+		top = mouse_y-1,
+		bottom = mouse_y + 2
+	}
+	
+	if (Ui.tutorial_stage == 0 and (x != 100 or y != 100)) then
+		Ui.tutorial_stage = 1
+	end
+	if (Ui.tutorial_stage == 1 and (btn(5) or key("space"))) then
+		Ui.tutorial_stage = 2
+	end
+	
+	update_buttons()
+end
+
+function calculate_cost(base_cost, level)
+	return flr(base_cost * level^2)
+end
+
+function draw_upgrade_board()
+	local current_x = 298
+	local current_y = 160
+	print("-- Upgrades Shop --", current_x, current_y, 29)
+	for i = 1, #Ui.upgrades do
+		current_y += 10
+		
+		local upgrade = Ui.upgrades[i]
+		local color_set = nil
+		if (upgrade.col == 12) color_set = "blue"
+		if (upgrade.col == 8) color_set = "red"
+		if (upgrade.col == 11) color_set = "green"
+		if (upgrade.col == 31) color_set = "orange"
+		
+		print(upgrade.name, current_x, current_y, upgrade.col)
+		draw_bar(current_x+120, current_y+12, 60, 8, upgrade.level, 6, color_set)
+		if (upgrade.level == 6) then print("-000", current_x+154, current_y, 10)
+		else print("-" .. pad_number(calculate_cost(upgrade.base_cost, upgrade.level), 3), current_x+154, current_y, 10) end
+	end
+end
+
+function draw_buttons()
+	for i = 1, #Ui.buttons do
+		local button = Ui.buttons[i]
+		if (i == 1 or Ui.shop_open) then
+			draw_bounded_collider(button.collider)
+			print(button.text, button.x, button.y, button.col)
+		end
+	end
+end
+
+function draw_ui()
+	draw_bounded_collider(mouse_collider)
+	
+	local coins_string = "Coins: " .. pad_number(coins, 6)
+	
+	rectfill(0, 260, 480, 270, 0)
+	print(get_tutorial_message(), 1, 261, 16)
+	print(coins_string, 410, 261, 10)
+	draw_buttons()
+	
+	if (Ui.shop_open) draw_upgrade_board()
+end
+
+function get_tutorial_message()
+	if (Ui.tutorial_stage == 0) then
+		return "Tutorial: Move with W,A,S,D keys or Arrow keys."
+	end
+	if (Ui.tutorial_stage == 1) then
+		return "Tutorial: Fire projectile(s) on the glowing side(s) with Space Key."
+	end
+	if (Ui.tutorial_stage == 2) then
+		return "Tutorial: Open the shop with the ^ button on the right to purchase upgrades."
+	end
+	if (Ui.tutorial_stage == 3) then
+		return "Tutorial: Close the shop with the same ^ button on the right."
+	end
+	if (Ui.tutorial_stage == 4) return "Game: Good Luck! Enemies will spawn now..."
+	if (Ui.tutorial_stage == 5) return "Game: Good Game! Your score was " .. score
+	return ""
+end
+:: utilities.lua
+--[[pod_format="raw",created="2025-08-01 19:11:30",modified="2025-08-02 19:22:27",revision=1]]
+function contains(list, value)
+	for _, item in pairs(list) do
+		if (item == value) return true
+	end
+	return false
+end
+
+function pad_number(number, digits)
+	padding = ""
+	for i = 1, digits-#("" .. number) do
+		padding = padding .. "0"
+	end
+	return padding .. number
+end
+:: .info.pod
+b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTA3LTE5IDEzOjMyOjM1Iixtb2RpZmllZD0iMjAyNS0w
+OC0xMSAxODoxMDozOSIscnVudGltZT0yMCx3b3Jrc3BhY2VzPXt7bG9jYXRpb249Im1haW4ubHVh
+IzgyIix3b3Jrc3BhY2VfaW5kZXg9MX0se2xvY2F0aW9uPSJwbGF5ZXIubHVhIzYiLHdvcmtzcGFj
+ZV9pbmRleD0xfSx7bG9jYXRpb249InByb2plY3RpbGVzLmx1YSMxMjUiLHdvcmtzcGFjZV9pbmRl
+eD0xfSx7bG9jYXRpb249ImRlYnVnLmx1YSMxMiIsd29ya3NwYWNlX2luZGV4PTF9LHtsb2NhdGlv
+bj0iaGVhbHRoX2JhcnMubHVhIzI2Iix3b3Jrc3BhY2VfaW5kZXg9MX0se2xvY2F0aW9uPSJkcm9w
+cy5sdWEjNyIsd29ya3NwYWNlX2luZGV4PTF9LHtsb2NhdGlvbj0idWkubHVhIzE5NiIsd29ya3Nw
+YWNlX2luZGV4PTF9LHtsb2NhdGlvbj0iY29sbGlzaW9ucy5sdWEjMTIiLHdvcmtzcGFjZV9pbmRl
+eD0xfSx7bG9jYXRpb249InV0aWxpdGllcy5sdWEjMTQiLHdvcmtzcGFjZV9pbmRleD0xfSx7bG9j
+YXRpb249ImVuZW1pZXMubHVhIzExIix3b3Jrc3BhY2VfaW5kZXg9MX0se2xvY2F0aW9uPSJnZngv
+MC5nZngiLHdvcmtzcGFjZV9pbmRleD0yfSx7bG9jYXRpb249Im1hcC8wLm1hcCIsd29ya3NwYWNl
+X2luZGV4PTN9LHtsb2NhdGlvbj0ic2Z4LzAuc2Z4Iix3b3Jrc3BhY2VfaW5kZXg9NH19XV0=
+:: [eoc]
