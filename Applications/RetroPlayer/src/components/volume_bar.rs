@@ -27,7 +27,7 @@ impl VolumeBar {
             "█".blue(),
         ]);
         volume.minimum = 0;
-        volume.maximum = 100;
+        volume.maximum = 200;
         volume.value = 100;
         volume.width = 1;
 
@@ -77,7 +77,7 @@ impl Component for VolumeBar {
     fn feed(&mut self, event: &retro_engine::Event) {
         if self.state == State::Active {
             if let Event::Key(event) = event {
-                if event.code == KeyCode::Up && self.value < 100 {
+                if event.code == KeyCode::Up && self.value < 200 {
                     self.value += 1;
                     self.progress_bar.value = self.value;
                     self.db = Self::volume_to_db(self.value);
