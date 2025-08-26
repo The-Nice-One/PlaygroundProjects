@@ -11,7 +11,7 @@ This project was built exploring parser design and simple compilation into javas
 * A simple error builder. (Found in [src/universal_error_system.js](src/universal_error_system.js))
 
 # Preview
-![JS REPL Env Preview](JSREPLEnvPreview.png)
+![previewJSREPLEnv](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Miscellaneous/JSREPLEnv/JSREPLEnvPreview.png)
 
 # Usage
 This project contains multiple files, with some being used as dependencies and some as indepedent files. You will need the following prerequisites to run any file in this project:

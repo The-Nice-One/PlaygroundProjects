@@ -12,7 +12,7 @@ physical project virtually as backup if the physical version did not work. Since
 * Some sounds and animations using AnimationPlayer and Audio nodes.
 
 # Preview
-![Safe Box Simulation Preview](SafeBoxSimulationPreview.png)
+![previewSafeBoxSimulation](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Miscellaneous/SafeBoxSimulation/SafeBoxSimulationPreview.png)
 
 # Usage
 This project holds a fully contained Godot project. To run it, you will need the following:

@@ -10,7 +10,7 @@ This game was created during my Game Programming class in 10th grade of high sch
 * Simple UI for choosing control method, displaying sprint energy, and timer.
 
 # Preview
-![Maze Game](MazeGamePreview.png)
+![previewMazeGame](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Games/MazeGame/MazeGamePreview.png)
 
 # Usage
 This project holds a fully contained Godot project. To run it, you will need the following:

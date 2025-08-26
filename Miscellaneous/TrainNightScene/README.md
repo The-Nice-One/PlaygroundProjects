@@ -16,7 +16,7 @@ This project spurred from the curiosity of exploring procedural digit graphics. 
 
 Whilst this project can be ran with Julia, the focus is on its artifacts. The following is the animated gif created by this project which was enlarged using [Gifsicle](https://github.com/kohler/gifsicle).
 
-![TrainNightScenePreview](TrainNightScenePreview.gif)
+![previewTrainNightScene](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Miscellaneous/TrainNightScene/TrainNightScenePreview.gif)
 
 # Usage
 

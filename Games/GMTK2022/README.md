@@ -14,7 +14,7 @@ This project was my submission fot the GMTK Game Jam 2022. I built this game wit
 
 # Preview
 
-![GMTK2022Preview](GMTK2022Preview.png)
+![previewGMTK2022](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Games/GMTK2022/GMTK2022Preview.png)
 
 # Usage
 

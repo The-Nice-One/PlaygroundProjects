@@ -12,7 +12,7 @@ Initially this project was created to manage an event in which so called "Event 
 * Customizable prefix for the bot.
 
 # Preview
-![Rep Bot Preview](RepBotPreview.png)
+![previewRepBot](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/DiscordBots/RepBot/RepBotPreview.png)
 
 # Usage
 This project contains a single [src/main.py](src/main.py) file which can be ran indenpently so long as your have [discord.py](https://pypi.org/project/discord.py/) installed. However, you may wish to create a custom venv to install the dependencies and run the project from there. In which case you will need to install the following:

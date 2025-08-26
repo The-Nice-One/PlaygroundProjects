@@ -10,7 +10,7 @@ This is one of my earlist Python projects in which I explored creating a game lo
 * Simple Formatting for colored text and more styled output.
 
 # Preview
-![Console Game Preview](ConsoleGamePreview.png)
+![previewConsoleGame](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Games/ConsoleGame/ConsoleGamePreview.png)
 
 # Usage
 This project contains a single [src/main.py](src/main.py) file which can be ran indenpently and has no package dependencies. This project also leaves no artifacts and as a result you may wish to run this without an environment in order to facilitate usage. In which case you will need to install the following:

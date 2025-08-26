@@ -16,7 +16,7 @@ This game was my submission for the GMTK Game Jam 2025. I used this opportunity 
 
 # Preivew
 
-![LoopBlasterPreview](LoopBlasterPreview.png)
+![previewLoopBlaster](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Games/LoopBlaster/LoopBlasterPreview.png)
 
 # Usage
 
