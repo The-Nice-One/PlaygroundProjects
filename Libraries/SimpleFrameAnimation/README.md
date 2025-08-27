@@ -18,7 +18,7 @@ This package is not published to the Julia General Registry. You must install th
 
 ```julia
 using Pkg
-Pkg.add(url="link needs to be tested", subdir="link needs to be tested")
+Pkg.add(url="https://github.com/The-Nice-One/PlaygroundProjects", subdir="Libraries/SimpleFrameAnimation")
 ```
 
 # License

@@ -24,7 +24,7 @@ This project contains a Julia project which can be ran given the following prere
 
 * [Julia](https://julialang.org/install/)
 
-Once you have installed Julia, you can `cd` into the project directory and run the [src/main.jl](src/main.jl) file.
+Once you have installed Julia, you can `cd` into the project directory and run the [src/main.jl](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Miscellaneous/TrainNightScene/src/main.jl) file.
 
 ```bash
 julia src/main.jl

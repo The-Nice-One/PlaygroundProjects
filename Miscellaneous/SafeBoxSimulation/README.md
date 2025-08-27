@@ -19,13 +19,13 @@ This project holds a fully contained Godot project. To run it, you will need the
 
 * [Godot 3.x](https://godotengine.org/download/3.x/)
 
-Once you have Godot installed, change your present working directory to the project's root directory and run the following commands to execute the [scenes/Main.tscn](scenes/Main.tscn) file:
+Once you have Godot installed, change your present working directory to the project's root directory and run the following commands to execute the [scenes/Main.tscn](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Miscellaneous/SafeBoxSimulation/scenes/Main.tscn) file:
 
 ```bash
 godot
 ```
 
-You may also open the Godot editor and import the project via the zip file or its [project.godot](project.godot) file.
+You may also open the Godot editor and import the project via the zip file or its [project.godot](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Miscellaneous/SafeBoxSimulation/project.godot) file.
 
 # License
 As with all other projects in this playground, the license is CC BY-NC.

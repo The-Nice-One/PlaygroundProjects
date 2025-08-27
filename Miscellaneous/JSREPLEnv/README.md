@@ -5,10 +5,10 @@ A javascript prototype for my programming language.
 This project was built exploring parser design and simple compilation into javascript function calls-which run on a deticated virtual session. It was created to add support for my programming language in the browser, allowing it to be used for code snippets, and embeding.
 
 # Features
-* Simple expression parsing such as `1 + 2 * 3` with order of operations. (Found in [src/exp_parser.js](src/exp_parser.js))
-* A runtime environment with a set of simple instructions, and memory registers. (Found in [src/interpreter.js](src/interpreter.js))
-* Experimental unfinished compiler for simple source code. (Found in [src/compiler.ts](src/compiler.ts))
-* A simple error builder. (Found in [src/universal_error_system.js](src/universal_error_system.js))
+* Simple expression parsing such as `1 + 2 * 3` with order of operations. (Found in [src/exp_parser.js](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Miscellaneous/JSREPLEnv/src/exp_parser.js))
+* A runtime environment with a set of simple instructions, and memory registers. (Found in [src/interpreter.js](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Miscellaneous/JSREPLEnv/src/interpreter.js))
+* Experimental unfinished compiler for simple source code. (Found in [src/compiler.ts](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Miscellaneous/JSREPLEnv/src/compiler.ts))
+* A simple error builder. (Found in [src/universal_error_system.js](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Miscellaneous/JSREPLEnv/src/universal_error_system.js))
 
 # Preview
 ![previewJSREPLEnv](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Miscellaneous/JSREPLEnv/JSREPLEnvPreview.png)
@@ -18,7 +18,7 @@ This project contains multiple files, with some being used as dependencies and s
 
 * [Node.js](https://nodejs.org/en/download) (or any js runtime including the browser)
 
-Assuming you have Node.js installed, you can use the following command to run the [src/exp_parser.js](src/exp_parser.js) file per say:
+Assuming you have Node.js installed, you can use the following command to run the [src/exp_parser.js](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Miscellaneous/JSREPLEnv/src/exp_parser.js) file per say:
 
 ```bash
 node src/exp_parser.js

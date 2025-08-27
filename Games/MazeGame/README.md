@@ -23,7 +23,7 @@ Once you have Godot installed, change your present working directory to the proj
 godot
 ```
 
-You may also open the Godot editor and import the project via the zip file or its [`project.godot`](./project.godot) file.
+You may also open the Godot editor and import the project via the zip file or its [project.godot](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Games/MazeGame/project.godot) file.
 
 # License
 As with all other projects in this playground, the license is CC BY-NC.

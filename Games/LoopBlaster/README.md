@@ -24,7 +24,7 @@ This project contains a `.p64` file which can be loaded given you have the follo
 
 * [Picotron](https://www.lexaloffle.com/picotron.php#getpicotron)
 
-Once you have picotron installed you may copy the [loop_blaster.p64](loop_blaster.p64) file to your picotron application folder load the file via:
+Once you have picotron installed you may copy the [loop_blaster.p64](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Games/LoopBlaster/loop_blaster.p64) file to your picotron application folder load the file via:
 
 ``` bash
 # Run this command within the Picotron terminal

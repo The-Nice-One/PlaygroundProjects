@@ -20,7 +20,7 @@ This project contains a Rust crate which is not published on crates.io. To insta
 ...
 [dependencies]
 ...
-retro_engine = { git = "link needs to be tested" }
+retro_engine = { git = "https://github.com/The-Nice-One/PlaygroundProjects" }
 ```
 
 # License
