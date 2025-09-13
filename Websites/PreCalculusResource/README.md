@@ -15,7 +15,7 @@ This project was created for a Pre-Calculus project. We were tasked with creatin
 
 # Preview
 
-![previewPreCalculusResource](https://github.com/The-Nice-One/PlaygroundProjects/blob/main/Websites/PreCalculusResource/PreCalculusResourcePreview.png)
+![previewPreCalculusResource](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Websites/PreCalculusResource/PreCalculusResourcePreview.png)
 
 # Usage
 
