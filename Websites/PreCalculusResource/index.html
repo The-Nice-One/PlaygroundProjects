@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+	<head>
+    	<meta charset="UTF-8" />
+    	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    	<title>Pre-Calculus | Polynomial Long Division</title>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=info" />
+    	<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+    	<div id="grid-container"></div>
+
+    	<div class="content">
+        	<h1 id="title">Pre-Calculus: Polynomial Long Division</h1>
+
+        	<div class="dropdown">
+            	<div id="menu-links" class="menu-links-closed">
+                	<a href="#synopsis">Synopsis</a>
+                	<a href="#example">Example</a>
+                	<a href="#knowledge-check">Knowledge Check</a>
+                	<a href="#more-resources">More Resources</a>
+            	</div>
+            	<button id="menu-arrow" onclick="toggle_menu();">
+                	▼ Quick Links
+            	</button>
+        	</div>
+
+        	<div class="content-container">
+            	<div class="sidebox" id="synopsis">
+                	<h3>Synopsis</h3>
+                	<p>
+                    	Polynomial long division is a concept which allows us to
+                    	divide any two
+                        <span class="tooltip-container">
+                        <span class="tooltip-trigger"><span class="material-symbols-outlined" style="vertical-align: bottom; font-size: 1.25em;">
+                        info
+                        </span>polynomials</span>
+                        <span class="tooltip-text">
+                           A polynomial is a expression which consists of terms. Terms may be a constant number,
+                           or some number multiplied by a variable raised to a positive integer power.
+                        </span>
+                        </span>
+                        and obtain the
+                        <span class="tooltip-container">
+                        <span class="tooltip-trigger"><span class="material-symbols-outlined" style="vertical-align: bottom; font-size: 1.25em;">
+                        info
+                        </span>quotient</span>
+                        <span class="tooltip-text">
+                            The quotient is the result of a division operation.
+                            \begin{array}{rl} \frac{3x^3}{x^2}=\color{DodgerBlue}{3x} \end{array}
+                        </span>
+                        </span>
+                        along with a
+                        <span class="tooltip-container">
+                        <span class="tooltip-trigger"><span class="material-symbols-outlined" style="vertical-align: bottom; font-size: 1.25em;">
+                        info
+                        </span>remainder</span>
+                        <span class="tooltip-text">
+                            The remainder is the expression which can no longer be further divided by the divsor.
+                        </span>
+                        </span>
+                        if applicable. It is very simillar to
+                    	standard long division and can be memorized with the
+                    	following sequence; Divide, Multiply, Subtract, Bring down.
+                	</p>
+            	</div>
+
+            	<div class="textbox" id="example" style="overflow-x: scroll; overflow: visible;">
+                	<h3>Example</h3>
+                	<p>In this example we are given the following
+                     <span class="tooltip-container">
+                     <span class="tooltip-trigger"><span class="material-symbols-outlined" style="vertical-align: bottom; font-size: 1.25em;">
+                     info
+                     </span>rational expression</span>
+                     <span class="tooltip-text">
+                          In other words, a rational expression consists of a fraction in which
+                          both the numerator (top) and denominator (bottom) are polynomials.
+                     </span>
+                     </span>
+                     \( \frac{2x^4-21x^2+9x+5}{x+3} \) to solve. Here is a guided example showing the steps for polynomial long divison.</p>
+                	<ul>
+                    	<li>Setup the equation as follows:</li>
+                    	<p>
+                        	\begin{array}{rll}
+
+                        	x+3
+                        	\enclose{longdiv}{2x^4+0x^3-21x^2+9x+5}\kern-.2ex
+                        	\\[-3pt]
+
+                        	\end{array}
+                    	</p>
+                	</ul>
+                    	<ul>
+                        	<p>Notes:</p>
+                        	<hr />
+                        	<li>
+                            	The
+                             <span class="tooltip-container">
+                             <span class="tooltip-trigger"><span class="material-symbols-outlined" style="vertical-align: bottom; font-size: 1.25em;">
+                             info
+                             </span>dividend</span>
+                             <span class="tooltip-text">
+                                 The dividend is the expression which is to be divided. This is the top part of a fraction.
+                                 \begin{array}{rl} \frac{\color{DodgerBlue}{3x^3}}{x^2}=3x \end{array}
+                             </span>
+                             </span>
+                             goes under the divison bracket.
+                            	Ensure the the polynomial is in
+                             <span class="tooltip-container">
+                             <span class="tooltip-trigger"><span class="material-symbols-outlined" style="vertical-align: bottom; font-size: 1.25em;">
+                             info
+                             </span>descending order</span>
+                             <span class="tooltip-text">
+                                 Descending order means that the highest degree terms come first.
+                                 \begin{array}{rl} x^2+3x-4 \end{array}
+                             </span>
+                             </span>
+                            	and add placeholders for any missing
+                             <span class="tooltip-container">
+                             <span class="tooltip-trigger"><span class="material-symbols-outlined" style="vertical-align: bottom; font-size: 1.25em;">
+                             info
+                             </span>degree</span>
+                             <span class="tooltip-text">
+                                 The degree of a term is the power to which the variable/number is raised.
+                                 \begin{array}{rl} 5x^{\color{DodgerBlue}{2}} \end{array}
+                             </span>
+                             </span>
+                            	terms.
+                        	</li>
+                        	<li>
+                            	The
+                             <span class="tooltip-container">
+                             <span class="tooltip-trigger"><span class="material-symbols-outlined" style="vertical-align: bottom; font-size: 1.25em;">
+                             info
+                             </span>divisor</span>
+                             <span class="tooltip-text">
+                                 The divisor is the expression which divides the dividend. This is the bottom part of a fraction.
+                                 \begin{array}{rl} \frac{3x^3}{\color{DodgerBlue}{x^2}}=3x \end{array}
+                             </span>
+                             </span>
+                             goes to the left of the divison
+                            	bracket.
+                        	</li>
+                    	</ul>
+                    	<p>Now that we have the equation setup we can perform the following 4 steps repeatedly until we are left with zero or a remainder.</p>
+                    	<ol>
+                    	<li>
+                        	Divide the current
+                         <span class="tooltip-container">
+                         <span class="tooltip-trigger"><span class="material-symbols-outlined" style="vertical-align: bottom; font-size: 1.25em;">
+                         info
+                         </span>leading term</span>
+                         <span class="tooltip-text">
+                             The leading term is the first term when the polynomial is written in
+                             decending order or standard form.
+                             \begin{array}{rl} {\color{DodgerBlue}{x^2}}+3x-4 \end{array}
+                         </span>
+                         </span>
+                         in the dividend by
+                        	the leading term of the divisor.
+                    	</li>
+                    	<p>\begin{array}{rl} \frac{2x^4}{x+3}=2x^3 \end{array}</p>
+                        <ul>
+                           	<p>Notes:</p>
+                           	<hr />
+                           	<li>
+                               	We can add the quotient ontop of the term with the same degree within the division bracket.
+                           	</li>
+                            <p>
+                               	\begin{array}{rll}  2x^3 \phantom{000000000000000} &&  \\[-3pt]
+                               	x+3
+                               	\enclose{longdiv}{2x^4+0x^3-21x^2+9x+5}\kern-.2ex
+                               	\\[-3pt]
+
+                               	\end{array}
+                           	</p>
+                       	</ul>
+
+                    	<li>
+                        	Distribute the quotient from the operation for all
+                        	terms in the divisor.
+                    	</li>
+                    	<p>\begin{array}{rl} 2x^3(x+3)=2x^4+6x^3 \end{array}</p>
+
+                    	<li>
+                        	Subtract the product polynomial from the initial
+                        	dividend:
+                    	</li>
+                    	<p>
+                        	\begin{array}{rll}  2x^3 \phantom{000000000000000} &&  \\[-3pt]
+
+                        	x+3 \enclose{longdiv}{\cancel{2x^4}+0x^3-21x^2+9x+5}\kern-.2ex \\[-3pt]
+
+                        	\underline{-(2x^4+6x^3)} \phantom{0000000000000} \\[-3pt]
+
+                        	0x^4-6x^3 \phantom{00000000000000} \\[-3pt]
+
+                        	\end{array}
+                    	</p>
+                    	<li>Bring down the next term of the dividend polynomial.</li>
+                    	<p>
+                        	\begin{array}{rll} 2x^3 \phantom{00000000000000} && \hbox{(Calculations - Steps 2 &amp; 3)} \\[-3pt]
+
+                        	x+3 \enclose{longdiv}{\cancel{2x^4}+0x^3-21x^2+9x+5}\kern-.2ex \\[-3pt]
+
+                        	\underline{-(2x^4+6x^3)} \phantom{000}  \nabla \phantom{000000000} && 2x^3(x+3)=2x^4+6x^3 \\[-3pt]
+
+                        	-6x^3-21x^2 \phantom{00000000} \\[-3pt]
+
+                        	\end{array}
+                    	</p>
+                	</ol>
+                	<ul>
+                    	<li>We can now repeat steps 1-4 again: (This time our leading coefficient of our dividend polynomial is \(-6x^3\))</li>
+                        <p>
+                        	\begin{array}{rll} 2x^3-6x^2 \phantom{0000000000} && \hbox{(Calculations - Steps 2 &amp; 3)} \\[-3pt]
+
+                        	x+3 \enclose{longdiv}{\cancel{2x^4}+\cancel{0x^3}-21x^2+9x+5}\kern-.2ex \\[-3pt]
+
+                        	\underline{-(2x^4+6x^3)} \phantom{00000}  \nabla  \phantom{000} \nabla \phantom{0000} && 2x^3(x+3)=2x^4+6x^3 \\[-3pt]
+
+                        	-6x^3-21x^2 \phantom{00000000} \\[-3pt]
+
+                            \underline{-(-6x^3-18x^2)} \phantom{0000000} && -6x^2(x+3)=-6x^3-18x^2 \\[-3pt]
+
+                            3x^2+9x \phantom{000} \\[-3pt]
+
+                        	\end{array}
+                    	</p>
+                        <li>And because the degree of our resulting polynomial is still higher than the degree of the divisor we can repeat once more.</li>
+                        <p>
+                        	\begin{array}{rll} 2x^3-6x^2+3x \phantom{000000} && \hbox{(Calculations - Steps 2 &amp; 3)} \\[-3pt]
+
+                        	x+3 \enclose{longdiv}{\cancel{2x^4}+\cancel{0x^3}\cancel{-21x^2}+\cancel{9x}+5}\kern-.2ex \\[-3pt]
+
+                        	\underline{-(2x^4+6x^3)} \phantom{00000}  \nabla  \phantom{00000} \nabla \phantom{00} \nabla && 2x^3(x+3)=2x^4+6x^3 \\[-3pt]
+
+                        	-6x^3-21x^2 \phantom{00000000} \\[-3pt]
+
+                            \underline{-(-6x^3-18x^2)} \phantom{0000000} && -6x^2(x+3)=-6x^3-18x^2 \\[-3pt]
+
+                            3x^2+9x \phantom{000} \\[-3pt]
+
+                            \underline{-(3x^2+9x)} \phantom{00} && 3x(x+3)=3x^2+9x \\[-3pt]
+
+                            5 \phantom{} \\[-3pt]
+
+                        	\end{array}
+                    	</p>
+                        <li>At last we are left with 5, which has a degree of 0. This is lower than the degree of the divisor (1) and as a result we can no longer divide any further. Because the resulting number is not 0, this means that we have a remainder. We can rewrite the final expression of our answer as follows:</li>
+                	<p>\begin{array}{rl} 2x^3-6x^2+3x+\frac{5}{x+3} \end{array}</p>
+                    <ul>
+                    	<p>Notes:</p>
+                    	<hr />
+                        <li>Notice how the remainder is written as a fraction over the divisor.</li>
+                	</ul>
+
+                 </ul>
+            	</div>
+
+            	<div class="textbox" id="knowledge-check">
+                	<h3>Knowledge Check</h3>
+                	<div class="quiz-container">
+                    	<div class="quiz-question">
+                        	<h4 id="question-title">
+                                Find the quotient of the following expression: \( \frac{9x^2+6x+3}{3x+2} \)
+                        	</h4>
+                        	<div class="options">
+                            	<div class="option">
+                                	<input
+                                    	type="radio"
+                                    	name="q1"
+                                    	id="q1a"
+                                    	value="a"
+                                	/>
+                                	<label for="q1a" id="q1a-label"
+                                    	>\( 3x \)</label
+                                	>
+                            	</div>
+                            	<div class="option">
+                                	<input
+                                    	type="radio"
+                                    	name="q1"
+                                    	id="q1b"
+                                    	value="b"
+                                	/>
+                                	<label for="q1b" id="q1b-label"
+                                    	>\( 3x+1 \)</label
+                                	>
+                            	</div>
+                            	<div class="option">
+                                	<input
+                                    	type="radio"
+                                    	name="q1"
+                                    	id="q1c"
+                                    	value="c"
+                                	/>
+                                	<label for="q1c" id="q1c-label">\( 3x+\frac{3}{3x+2} \)</label>
+                            	</div>
+                            	<div class="option">
+                                	<input
+                                    	type="radio"
+                                    	name="q1"
+                                    	id="q1d"
+                                    	value="d"
+                                	/>
+                                	<label for="q1d" id="q1d-label"
+                                    	>\( 3 \)</label
+                                	>
+                            	</div>
+                        	</div>
+
+                        	<div class="quiz-actions">
+                            	<button
+                                	class="btn check-btn"
+                                	onclick="checkAnswer()"
+                            	>
+                                	Check Answer
+                            	</button>
+                        	</div>
+
+                        	<div class="feedback correct">
+                            	<p style="float: left;">
+                                	Correct!
+                            	</p>
+                             <button
+                                 id="next-question-btn"
+                                	class="btn check-btn"
+                                	onclick="nextQuestion()"
+                                    style="float: right; margin: auto;"
+                            	>
+                                	Next Question
+                            	</button>
+                        	</div>
+                        	<div class="feedback incorrect">
+                            	<p>
+                                	Incorrect.
+                            	</p>
+                        	</div>
+                    	</div>
+                	</div>
+            	</div>
+
+            	<div class="sidebox" id="more-resources">
+                	<h3>More Resources</h3>
+                	<p>
+                    	If you need more help you may visit the following websites, videos, and more.
+                    	<ul>
+                        	<li><a class="resource" href="https://www.khanacademy.org/math/algebra2/x2ec2f6f830c9fb89:poly-div">Khan Academy: Polynomial Divison</a></li>
+                        	<li><a class="resource" href="https://www.youtube.com/watch?v=8lT00iLntFc">Organic Chemistry Teacher: Polynomials - Long Division</a></li>
+                    	</ul>
+                	</p>
+            	</div>
+        	</div>
+    	</div>
+
+    	<footer>
+        	<div class="footer-content">
+            	<div class="footer-section">
+                	<h4>Thanks for visiting!</h4>
+                	<p>
+                    	This website was develped by Alexis Osorio for the Pre-Calculus
+                    	Resource Performance Task.
+                	</p>
+            	</div>
+        	</div>
+    	</footer>
+
+    	<script
+        	id="MathJax-script"
+        	async
+        	src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+    	></script>
+    	<script src="script.js"></script>
+	</body>
+</html>
