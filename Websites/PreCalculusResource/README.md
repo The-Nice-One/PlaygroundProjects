@@ -1,4 +1,4 @@
-# Polynomial Long Division Lessson
+# Polynomial Long Division Lesson
 
 An interactive resource website for learning polynomial long division via notes and questions.
 
