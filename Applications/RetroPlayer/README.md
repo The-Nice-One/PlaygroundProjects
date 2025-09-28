@@ -12,6 +12,7 @@ After creating my very own TUI library called [Retro Engine](https://github.com/
 * Audio playback control (shuffle, previous, play/pause, next, restart, volume).
 * Simple to understand interface and adaptive layout based on terminal width.
 * Keyboard input for all interactions.
+* Discord rich presence support.
 
 # Preview
 

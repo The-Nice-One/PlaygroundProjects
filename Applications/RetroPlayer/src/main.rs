@@ -1,3 +1,4 @@
+use discord_presence::{Client, models::ActivityType};
 use kira::{
     AudioManager, AudioManagerSettings, DefaultBackend, Tween,
     sound::static_sound::StaticSoundData, sound::static_sound::StaticSoundHandle,
@@ -24,6 +25,7 @@ use player::*;
 #[derive(Serialize, Deserialize)]
 struct Configuration {
     songs_directory: String,
+    discord_presence: bool,
 }
 
 fn get_configuration_file() -> Option<(String, Vec<u8>)> {
@@ -51,7 +53,11 @@ fn get_configuration_file() -> Option<(String, Vec<u8>)> {
             );
             let write_result = write(
                 &configuration_path,
-                "# Inside the \"\" (quotes) type the path to your song directory.\nsongs_directory = \"\"",
+                "# Inside the \"\" (quotes) type the path to your song directory.
+songs_directory = \"\"
+
+# Change 'false' to 'true' to enable Discord rich presence feature.
+discord_presence = false",
             );
             if write_result.is_err() {
                 println!(
@@ -92,6 +98,14 @@ fn main() {
         );
         return;
     }
+
+    let mut discord_rpc = if configuration.discord_presence {
+        let mut client = Client::new(1421950568858910758);
+        client.start();
+        Some(client)
+    } else {
+        None
+    };
 
     let mut terminal = Terminal::init();
     terminal.hide_cursor();
@@ -138,6 +152,19 @@ fn main() {
             sound = Some(manager.play(sound_data.clone()).unwrap());
 
             update_song_list(&mut song_list, &player);
+            if let Some(client) = &mut discord_rpc {
+                client
+                    .set_activity(|activity| {
+                        activity.activity_type(ActivityType::Listening).state(
+                            &player
+                                .current()
+                                .unwrap_or((&String::from("None"), &String::from("None")))
+                                .0
+                                .clone(),
+                        )
+                    })
+                    .unwrap();
+            }
         }
 
         if terminal.event.is_some() {
@@ -201,4 +228,7 @@ fn main() {
 
     terminal.deinit();
     sound.as_mut().unwrap().stop(Tween::default());
+    if let Some(client) = discord_rpc.take() {
+        client.shutdown().unwrap();
+    }
 }
