@@ -1,4 +1,7 @@
-use discord_presence::{Client, models::ActivityType};
+use discord_presence::{
+    Client,
+    models::{Activity, ActivityType},
+};
 use kira::{
     AudioManager, AudioManagerSettings, DefaultBackend, Tween,
     sound::static_sound::StaticSoundData, sound::static_sound::StaticSoundHandle,
@@ -8,75 +11,22 @@ use retro_engine::components::trait_def::Component;
 use retro_engine::components::*;
 use retro_engine::core::Terminal;
 use retro_engine::feeders::trait_def::Feeder;
-use serde::{Deserialize, Serialize};
-use std::{env::current_exe, fs::read, fs::write};
+use std::sync::{Arc, Mutex};
 use toml::from_slice;
 
 mod builders;
 mod components;
+mod configuration;
 mod handlers;
 mod player;
+mod presence;
 
 use builders::*;
 use components::*;
+use configuration::*;
 use handlers::*;
 use player::*;
-
-#[derive(Serialize, Deserialize)]
-struct Configuration {
-    songs_directory: String,
-    discord_presence: bool,
-}
-
-fn get_configuration_file() -> Option<(String, Vec<u8>)> {
-    let exe_path = current_exe();
-    if exe_path.is_err() {
-        println!(
-            "{} Could not find executable path. Read permission may be denied.",
-            "[ Error: ".red()
-        );
-        return None;
-    }
-
-    if let Some(exe_dir) = exe_path.unwrap().parent() {
-        let configuration_path = exe_dir
-            .join("Configuration.toml")
-            .to_str()
-            .unwrap()
-            .to_string();
-
-        let file = read(&configuration_path);
-        if file.is_err() {
-            println!(
-                "{} Configuration file not found in executable directory. Attempting to create one...",
-                "[ Error: ".red()
-            );
-            let write_result = write(
-                &configuration_path,
-                "# Inside the \"\" (quotes) type the path to your song directory.
-songs_directory = \"\"
-
-# Change 'false' to 'true' to enable Discord rich presence feature.
-discord_presence = false",
-            );
-            if write_result.is_err() {
-                println!(
-                    "{} Could not write configuration file. Write permission may be denied.",
-                    "[ Error: ".red()
-                );
-            } else {
-                println!(
-                    "{} Configuration file created successfully. You can edit it at {}",
-                    "[ Success: ".green(),
-                    &configuration_path
-                );
-            }
-            return None;
-        }
-        return Some((configuration_path, file.unwrap()));
-    }
-    None
-}
+use presence::*;
 
 fn main() {
     let configuration_file = get_configuration_file();
@@ -99,13 +49,13 @@ fn main() {
         return;
     }
 
-    let mut discord_rpc = if configuration.discord_presence {
-        let mut client = Client::new(1421950568858910758);
-        client.start();
-        Some(client)
+    let mut discord_rpc_handles = vec![];
+    let discord_rpc = if configuration.discord_presence {
+        Arc::new(Mutex::new(Some(Client::new(1421950568858910758))))
     } else {
-        None
+        Arc::new(Mutex::new(None))
     };
+    start_discord_rpc(&discord_rpc, &mut discord_rpc_handles);
 
     let mut terminal = Terminal::init();
     terminal.hide_cursor();
@@ -152,19 +102,16 @@ fn main() {
             sound = Some(manager.play(sound_data.clone()).unwrap());
 
             update_song_list(&mut song_list, &player);
-            if let Some(client) = &mut discord_rpc {
-                client
-                    .set_activity(|activity| {
-                        activity.activity_type(ActivityType::Listening).state(
-                            &player
-                                .current()
-                                .unwrap_or((&String::from("None"), &String::from("None")))
-                                .0
-                                .clone(),
-                        )
-                    })
-                    .unwrap();
-            }
+            let activity = Activity::new()
+                .activity_type(ActivityType::Listening)
+                .state(
+                    player
+                        .current()
+                        .unwrap_or((&String::from("None"), &String::from("None")))
+                        .0
+                        .clone(),
+                );
+            update_discord_rpc(&discord_rpc, &mut discord_rpc_handles, activity);
         }
 
         if terminal.event.is_some() {
@@ -228,7 +175,17 @@ fn main() {
 
     terminal.deinit();
     sound.as_mut().unwrap().stop(Tween::default());
-    if let Some(client) = discord_rpc.take() {
-        client.shutdown().unwrap();
+
+    for handle in discord_rpc_handles {
+        handle.join().unwrap();
+    }
+    match Arc::try_unwrap(discord_rpc) {
+        Ok(client) => {
+            let mut client = client.into_inner().unwrap();
+            if let Some(client) = client.take() {
+                client.shutdown().unwrap();
+            }
+        }
+        _ => {}
     }
 }
