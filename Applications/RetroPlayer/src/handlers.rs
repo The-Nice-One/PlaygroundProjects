@@ -1,9 +1,7 @@
-use crate::theme::THEME;
 use crate::update_song_list;
 use crate::PlayerSession;
 use kira::{sound::static_sound::StaticSoundHandle, sound::PlaybackState, Tween};
 use retro_engine::components::*;
-use retro_engine::Stylize;
 
 pub fn handle_header_controls(
     header: &mut Grid,
@@ -14,7 +12,7 @@ pub fn handle_header_controls(
     if header.get_state().unwrap_or(State::Disabled) == State::Hovered {
         control_panel
             .text
-            .default("Header Controls - Settings, Exit".with(THEME.get().unwrap().primary));
+            .default("Header Controls - Settings, Exit");
         control_panel.offset = 0;
     }
 

@@ -86,8 +86,7 @@ fn main() {
     let mut header = new_header();
     header.set_state(State::Hovered);
     let mut control_panel = Text::new(
-        "ARROW keys to navigate between items, ENTER key to select, and ESC key to go back   "
-            .with(THEME.get().unwrap().primary),
+        "ARROW keys to navigate between items, ENTER key to select, and ESC key to go back   ",
         None,
         None,
         0,
@@ -151,15 +150,13 @@ fn main() {
             );
 
             if volume_bar.get_state().unwrap_or(State::Disabled) == State::Hovered {
-                control_panel
-                    .text
-                    .default("Volume Controls - Adjust   ".with(THEME.get().unwrap().primary));
+                control_panel.text.default("Volume Controls - Adjust   ");
                 control_panel.offset = 0;
             }
             if volume_bar.get_state().unwrap_or(State::Disabled) == State::Active {
-                control_panel.text.default(
-                    "Adjust Volume - UP or DOWN arrow keys   ".with(THEME.get().unwrap().primary),
-                );
+                control_panel
+                    .text
+                    .default("Adjust Volume - UP or DOWN arrow keys   ");
                 control_panel.offset = 0;
             }
 
