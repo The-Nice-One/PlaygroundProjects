@@ -24,13 +24,7 @@ impl PlayerSession {
                 .unwrap()
                 .to_owned();
 
-            let song_name = file_name
-                .as_str()
-                .split(".")
-                .into_iter()
-                .next()
-                .unwrap()
-                .to_owned();
+            let song_name = file_name.as_str().split(".").next().unwrap().to_owned();
 
             self.songs.insert(song_name, full_path);
         }
@@ -51,7 +45,7 @@ impl PlayerSession {
     }
     pub fn peek_next(&self) -> Option<(&String, &String)> {
         let index = (self.current_index + 1) % self.songs.len();
-        return self.songs.get_index(index);
+        self.songs.get_index(index)
     }
     pub fn current(&self) -> Option<(&String, &String)> {
         self.songs.get_index(self.current_index)

@@ -1,3 +1,4 @@
+use crate::theme::THEME;
 use retro_engine::components::*;
 use retro_engine::{Event, KeyCode, Stylize};
 
@@ -15,16 +16,16 @@ impl VolumeBar {
     pub fn new() -> Self {
         let mut volume = ProgressBar::default();
 
-        volume.left("█".blue());
+        volume.left("█".with(THEME.get().unwrap().accent));
         volume.pointer(vec![
-            "▁".blue(),
-            "▂".blue(),
-            "▃".blue(),
-            "▄".blue(),
-            "▅".blue(),
-            "▆".blue(),
-            "▇".blue(),
-            "█".blue(),
+            "▁".with(THEME.get().unwrap().accent),
+            "▂".with(THEME.get().unwrap().accent),
+            "▃".with(THEME.get().unwrap().accent),
+            "▄".with(THEME.get().unwrap().accent),
+            "▅".with(THEME.get().unwrap().accent),
+            "▆".with(THEME.get().unwrap().accent),
+            "▇".with(THEME.get().unwrap().accent),
+            "█".with(THEME.get().unwrap().accent),
         ]);
         volume.minimum = 0;
         volume.maximum = 200;
@@ -35,13 +36,13 @@ impl VolumeBar {
             value: 100,
             db: Self::volume_to_db(100),
             state: State::Default,
-            left: StatefulString::from("[  ")
-                .hovered("[  ".blue())
-                .active("[  ".blue().bold())
+            left: StatefulString::from("[  ".with(THEME.get().unwrap().primary))
+                .hovered("[  ".with(THEME.get().unwrap().accent))
+                .active("[  ".with(THEME.get().unwrap().accent).bold())
                 .into(),
-            right: StatefulString::from("  ]")
-                .hovered("  ]".blue())
-                .active("  ]".blue().bold())
+            right: StatefulString::from("  ]".with(THEME.get().unwrap().primary))
+                .hovered("  ]".with(THEME.get().unwrap().accent))
+                .active("  ]".with(THEME.get().unwrap().accent).bold())
                 .into(),
             progress_bar: volume,
         }
@@ -61,11 +62,11 @@ impl std::fmt::Display for VolumeBar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}{}% {}{}",
+            "{}{} {}{}",
             self.left.display(),
-            self.value,
+            format!("{}%", self.value).with(THEME.get().unwrap().primary),
             self.progress_bar.display(),
-            self.right
+            self.right.display()
         )
     }
 }

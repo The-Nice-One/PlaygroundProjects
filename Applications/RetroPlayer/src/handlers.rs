@@ -1,7 +1,9 @@
-use crate::PlayerSession;
+use crate::theme::THEME;
 use crate::update_song_list;
-use kira::{Tween, sound::PlaybackState, sound::static_sound::StaticSoundHandle};
+use crate::PlayerSession;
+use kira::{sound::static_sound::StaticSoundHandle, sound::PlaybackState, Tween};
 use retro_engine::components::*;
+use retro_engine::Stylize;
 
 pub fn handle_header_controls(
     header: &mut Grid,
@@ -9,10 +11,10 @@ pub fn handle_header_controls(
     configuration_path: &String,
     running: &mut bool,
 ) {
-    if header.get_state().unwrap_or_else(|| State::Disabled) == State::Hovered {
+    if header.get_state().unwrap_or(State::Disabled) == State::Hovered {
         control_panel
             .text
-            .default("Header Controls - Settings, Exit");
+            .default("Header Controls - Settings, Exit".with(THEME.get().unwrap().primary));
         control_panel.offset = 0;
     }
 
@@ -50,11 +52,7 @@ pub fn handle_audio_controls(
             .default("Audio Controls - Shuffle, Previous, Pause, Next, Restart   ");
         control_panel.offset = 0;
     }
-    if audio_controls
-        .get_state()
-        .unwrap_or_else(|| State::Disabled)
-        != State::Active
-    {
+    if audio_controls.get_state().unwrap_or(State::Disabled) != State::Active {
         return;
     }
 
@@ -73,7 +71,7 @@ pub fn handle_audio_controls(
         && sound.is_some()
     {
         player.shuffle();
-        update_song_list(song_list, &player);
+        update_song_list(song_list, player);
     }
 
     if audio_controls.data[1]

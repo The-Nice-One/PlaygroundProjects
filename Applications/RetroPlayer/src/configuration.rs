@@ -4,9 +4,17 @@ use std::env::current_exe;
 use std::fs::{read, write};
 
 #[derive(Serialize, Deserialize)]
+pub struct Theme {
+    pub primary: String,
+    pub secondary: String,
+    pub accent: String,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Configuration {
     pub songs_directory: String,
     pub discord_presence: bool,
+    pub theme: Theme,
 }
 
 pub fn get_configuration_file() -> Option<(String, Vec<u8>)> {
@@ -38,7 +46,15 @@ pub fn get_configuration_file() -> Option<(String, Vec<u8>)> {
 songs_directory = \"\"
 
 # Change 'false' to 'true' to enable Discord rich presence feature.
-discord_presence = false",
+discord_presence = false
+
+# Colors used by the application. The following colors are supported for each of the fields below the theme section.
+# default, white, grey, red, green, yellow, blue, magenta, cyan, black, dark-grey, dark-red, dark-green, dark-yellow, dark-blue, dark-magenta, dark-cyan.
+[theme]
+primary = \"default\"
+secondary = \"dark-grey\"
+accent = \"blue\"
+",
             );
             if write_result.is_err() {
                 println!(

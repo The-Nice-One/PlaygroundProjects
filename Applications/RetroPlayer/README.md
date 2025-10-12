@@ -13,6 +13,7 @@ After creating my very own TUI library called [Retro Engine](https://github.com/
 * Simple to understand interface and adaptive layout based on terminal width.
 * Keyboard input for all interactions.
 * Discord rich presence support.
+* Custom theme support with 16 base terminal colors.
 
 # Preview
 

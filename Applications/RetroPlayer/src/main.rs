@@ -1,16 +1,16 @@
 use discord_presence::{
-    Client,
     models::{Activity, ActivityType},
+    Client,
 };
 use kira::{
-    AudioManager, AudioManagerSettings, DefaultBackend, Tween,
-    sound::static_sound::StaticSoundData, sound::static_sound::StaticSoundHandle,
+    sound::static_sound::StaticSoundData, sound::static_sound::StaticSoundHandle, AudioManager,
+    AudioManagerSettings, DefaultBackend, Tween,
 };
-use retro_engine::Stylize;
 use retro_engine::components::trait_def::Component;
 use retro_engine::components::*;
 use retro_engine::core::Terminal;
 use retro_engine::feeders::trait_def::Feeder;
+use retro_engine::Stylize;
 use std::sync::{Arc, Mutex};
 use toml::from_slice;
 
@@ -20,6 +20,7 @@ mod configuration;
 mod handlers;
 mod player;
 mod presence;
+mod theme;
 
 use builders::*;
 use components::*;
@@ -27,6 +28,7 @@ use configuration::*;
 use handlers::*;
 use player::*;
 use presence::*;
+use theme::*;
 
 fn main() {
     let configuration_file = get_configuration_file();
@@ -57,6 +59,12 @@ fn main() {
     };
     start_discord_rpc(&discord_rpc, &mut discord_rpc_handles);
 
+    init_theme(
+        configuration.theme.primary,
+        configuration.theme.secondary,
+        configuration.theme.accent,
+    );
+
     let mut terminal = Terminal::init();
     terminal.hide_cursor();
 
@@ -65,9 +73,9 @@ fn main() {
 
     let mut side_bar = VerticalLine::default();
     side_bar
-        .start("┌".blue())
-        .middle("|".blue())
-        .end("└".blue())
+        .start("┌".with(THEME.get().unwrap().accent))
+        .middle("|".with(THEME.get().unwrap().accent))
+        .end("└".with(THEME.get().unwrap().accent))
         .height(3);
 
     let mut song_list = Grid::new((1, 3));
@@ -78,7 +86,8 @@ fn main() {
     let mut header = new_header();
     header.set_state(State::Hovered);
     let mut control_panel = Text::new(
-        "ARROW keys to navigate between items, ENTER key to select, and ESC key to go back   ",
+        "ARROW keys to navigate between items, ENTER key to select, and ESC key to go back   "
+            .with(THEME.get().unwrap().primary),
         None,
         None,
         0,
@@ -142,13 +151,15 @@ fn main() {
             );
 
             if volume_bar.get_state().unwrap_or(State::Disabled) == State::Hovered {
-                control_panel.text.default("Volume Controls - Adjust   ");
+                control_panel
+                    .text
+                    .default("Volume Controls - Adjust   ".with(THEME.get().unwrap().primary));
                 control_panel.offset = 0;
             }
             if volume_bar.get_state().unwrap_or(State::Disabled) == State::Active {
-                control_panel
-                    .text
-                    .default("Adjust Volume - UP or DOWN arrow keys   ");
+                control_panel.text.default(
+                    "Adjust Volume - UP or DOWN arrow keys   ".with(THEME.get().unwrap().primary),
+                );
                 control_panel.offset = 0;
             }
 
@@ -179,13 +190,11 @@ fn main() {
     for handle in discord_rpc_handles {
         handle.join().unwrap();
     }
-    match Arc::try_unwrap(discord_rpc) {
-        Ok(client) => {
-            let mut client = client.into_inner().unwrap();
-            if let Some(client) = client.take() {
-                client.shutdown().unwrap();
-            }
+
+    if let Ok(client) = Arc::try_unwrap(discord_rpc) {
+        let mut client = client.into_inner().unwrap();
+        if let Some(client) = client.take() {
+            client.shutdown().unwrap();
         }
-        _ => {}
     }
 }
