@@ -24,7 +24,15 @@ impl PlayerSession {
                 .unwrap()
                 .to_owned();
 
-            let song_name = file_name.as_str().split(".").next().unwrap().to_owned();
+            let song_name = file_name
+                .as_str()
+                .split(".")
+                .collect::<Vec<&str>>()
+                .split_last()
+                .unwrap()
+                .1
+                .join(".")
+                .to_owned();
 
             self.songs.insert(song_name, full_path);
         }
