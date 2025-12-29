@@ -104,6 +104,6 @@ impl Component for StatefulString {
         self.state = state
     }
     fn get_state(&self) -> Option<State> {
-        return Some(self.state);
+        Some(self.state)
     }
 }

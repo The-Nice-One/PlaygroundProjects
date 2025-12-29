@@ -2,25 +2,27 @@ use super::{Component, State, StatefulString};
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Toggle {
+pub struct Radio {
     pub state: State,
     pub on: StatefulString,
     pub off: StatefulString,
     pub is_on: bool,
+    pub id: Option<usize>,
 }
 
-impl Toggle {
+impl Radio {
     pub fn new(on: StatefulString, off: StatefulString, is_on: bool) -> Self {
         Self {
             state: State::Default,
             on,
             off,
             is_on,
+            id: None,
         }
     }
 }
 
-impl fmt::Display for Toggle {
+impl fmt::Display for Radio {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.is_on {
             match self.state {
@@ -40,29 +42,31 @@ impl fmt::Display for Toggle {
     }
 }
 
-impl From<StatefulString> for Toggle {
+impl From<StatefulString> for Radio {
     fn from(value: StatefulString) -> Self {
         Self {
             state: State::Default,
             on: value.clone(),
             off: value.clone(),
             is_on: false,
+            id: None,
         }
     }
 }
 
-impl From<&mut StatefulString> for Toggle {
+impl From<&mut StatefulString> for Radio {
     fn from(value: &mut StatefulString) -> Self {
         Self {
             state: State::Default,
             on: value.clone(),
             off: value.clone(),
             is_on: false,
+            id: None,
         }
     }
 }
 
-impl Component for Toggle {
+impl Component for Radio {
     fn display(&self) -> String {
         format!("{}", self)
     }
@@ -71,7 +75,9 @@ impl Component for Toggle {
             if let crossterm::event::Event::Key(event) = event {
                 if event.code == crossterm::event::KeyCode::Enter {
                     self.state = State::Active;
-                    self.is_on = !self.is_on;
+                    if !self.is_on {
+                        self.is_on = true;
+                    }
                 } else {
                     self.state = State::Hovered;
                 }

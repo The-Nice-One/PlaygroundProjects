@@ -48,7 +48,7 @@ impl Terminal {
         crossterm::terminal::disable_raw_mode().unwrap();
         crossterm::execute!(stdout(), crossterm::event::DisableFocusChange).unwrap();
     }
-    pub fn print(&self, string: &String) -> String {
+    pub fn print(&self, string: &str) -> String {
         let mut strings: Vec<String> = string.split("\n").map(|s| s.to_string()).collect();
         for string in strings.iter_mut() {
             let dif = self.screen.width as isize

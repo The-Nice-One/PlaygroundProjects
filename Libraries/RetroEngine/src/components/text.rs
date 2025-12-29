@@ -31,10 +31,10 @@ impl fmt::Display for Text {
             if current_length < min_width as usize {
                 let padding = min_width as usize - current_length;
                 if self.looping {
-                    let padding = take(&self.text.display(), 0, padding as usize - 1);
+                    let padding = take(&self.text.display(), 0, padding - 1);
                     write!(f, "{}", padding)?;
                 } else {
-                    let padding = " ".repeat(padding as usize);
+                    let padding = " ".repeat(padding);
                     write!(f, "{}", padding)?;
                 }
             }

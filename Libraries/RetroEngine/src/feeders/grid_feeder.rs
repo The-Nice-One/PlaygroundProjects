@@ -32,7 +32,7 @@ impl Feeder for GridFeeder {
         let index = (self.hovered.0 + self.hovered.1 * self.size.0) as usize;
 
         if components[index].get_state() == Some(State::Active) && !pressed_escape {
-            components[index].feed(&event);
+            components[index].feed(event);
         } else if let crossterm::event::Event::Key(key_event) = event {
             let old_index = (self.hovered.0 + self.hovered.1 * self.size.0) as usize;
             if pressed_escape {

@@ -1,7 +1,18 @@
 use super::stateful_string::StatefulString;
 use super::trait_def::{Component, State};
-use super::{Button, Null, Toggle};
+use super::{Button, Null, Radio, Toggle};
 use std::fmt;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RadioGroup {
+    pub id: usize,
+}
+
+impl From<usize> for RadioGroup {
+    fn from(id: usize) -> Self {
+        Self { id }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GridItem {
@@ -9,6 +20,7 @@ pub enum GridItem {
     StatefulString(StatefulString),
     Button(Button),
     Toggle(Toggle),
+    Radio(Radio, RadioGroup),
 }
 
 impl Component for GridItem {
@@ -18,6 +30,7 @@ impl Component for GridItem {
             GridItem::StatefulString(item) => item.display(),
             GridItem::Button(item) => item.display(),
             GridItem::Toggle(item) => item.display(),
+            GridItem::Radio(item, ..) => item.display(),
         }
     }
     fn feed(&mut self, event: &crossterm::event::Event) {
@@ -26,6 +39,7 @@ impl Component for GridItem {
             GridItem::StatefulString(item) => item.feed(event),
             GridItem::Button(item) => item.feed(event),
             GridItem::Toggle(item) => item.feed(event),
+            GridItem::Radio(item, ..) => item.feed(event),
         }
     }
     fn set_state(&mut self, state: State) {
@@ -34,6 +48,7 @@ impl Component for GridItem {
             GridItem::StatefulString(item) => item.set_state(state),
             GridItem::Button(item) => item.set_state(state),
             GridItem::Toggle(item) => item.set_state(state),
+            GridItem::Radio(item, ..) => item.set_state(state),
         }
     }
     fn get_state(&self) -> Option<State> {
@@ -42,6 +57,7 @@ impl Component for GridItem {
             GridItem::StatefulString(item) => item.get_state(),
             GridItem::Button(item) => item.get_state(),
             GridItem::Toggle(item) => item.get_state(),
+            GridItem::Radio(item, ..) => item.get_state(),
         }
     }
 }
@@ -71,6 +87,21 @@ impl Grid {
             hovered: (0, 0),
             state: State::Default,
         }
+    }
+    pub fn get_active_radio(&self, radio_group: RadioGroup) -> Option<&Radio> {
+        self.data
+            .iter()
+            .filter_map(|item| match item {
+                GridItem::Radio(item, group) => {
+                    if group.id == radio_group.id && item.is_on {
+                        Some(item)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            })
+            .next()
     }
 }
 
@@ -144,6 +175,30 @@ impl Component for Grid {
                 self.data[new_index].set_state(State::Hovered);
             } else {
                 self.data[new_index].feed(event);
+                let current_item = self.data[new_index].clone();
+                match current_item {
+                    GridItem::Radio(radio, radio_group) => {
+                        if radio.is_on {
+                            let related_radios =
+                                self.data.iter_mut().filter_map(|item| match item {
+                                    GridItem::Radio(item, group) => {
+                                        if group.id == radio_group.id {
+                                            Some((item, group))
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    _ => None,
+                                });
+                            for (item, ..) in related_radios {
+                                if !(item == &radio) {
+                                    item.is_on = false;
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
     }
