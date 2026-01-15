@@ -18,7 +18,7 @@ pub fn handle_header_controls(header: &mut Grid, control_panel: &mut Text, runni
         if header.data[0].get_state().unwrap_or(State::Disabled) == State::Hovered {
             control_panel
                 .text
-                .default("Switch to Contrl View - ENTER key   ");
+                .default("Switch to Control View - ENTER key   ");
             control_panel.offset = 0;
         }
         if header.data[1].get_state().unwrap_or(State::Disabled) == State::Hovered {

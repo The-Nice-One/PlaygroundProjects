@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-retro_engine = { path = "/home/nice/Downloads/Playground-Projects/Libraries/RetroEngine" }
+retro_engine = { git = "https://github.com/The-Nice-One/PlaygroundProjects" }
 discord-presence = "2.1.0"
 kira = "0.10.4"
 indexmap = "2.9.0"

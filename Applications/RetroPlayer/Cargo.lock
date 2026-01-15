@@ -1032,6 +1032,7 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 [[package]]
 name = "retro_engine"
 version = "0.1.0"
+source = "git+https://github.com/The-Nice-One/PlaygroundProjects#61b65ca1d26b4203e3f2a9fe905faea84e938e39"
 dependencies = [
  "crossterm",
  "strip-ansi-escapes",
