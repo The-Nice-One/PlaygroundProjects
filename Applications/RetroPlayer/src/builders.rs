@@ -1,30 +1,67 @@
-use crate::theme::THEME;
-use crate::{PlayerSession, Terminal, VolumeBar};
+use crate::theme;
+use crate::{LogDisplay, PlayerSession, Terminal, VolumeBar};
+use crate::{configuration, configuration::*};
 use kira::sound::static_sound::StaticSoundHandle;
+use retro_engine::Stylize;
 use retro_engine::components::*;
 use retro_engine::utilities::length;
-use retro_engine::Stylize;
 
-pub fn new_header() -> retro_engine::components::Grid {
-    let mut header = Grid::new((2, 1));
-    header.data[0] = GridItem::Button(Button::from(
-        StatefulString::from("⋮".with(THEME.get().unwrap().primary))
-            .hovered("⋮".with(THEME.get().unwrap().accent))
-            .active("⋮".with(THEME.get().unwrap().accent).bold()),
+pub fn new_view_group() -> (RadioGroup, Radio, Radio) {
+    let view_group = RadioGroup::from(0);
+    let mut control_radio = Radio::new(
+        StatefulString::from("♪".with(theme!().accent).bold())
+            .hovered("♪".with(theme!().accent).bold())
+            .active("♪".with(theme!().accent).bold())
+            .into(),
+        StatefulString::from("♪".with(theme!().primary))
+            .hovered("♪".with(theme!().accent))
+            .active("♪".with(theme!().accent))
+            .into(),
+        true,
+    );
+    control_radio.id = Some(0);
+
+    let mut log_radio = Radio::new(
+        StatefulString::from("☰".with(theme!().accent).bold())
+            .hovered("☰".with(theme!().accent).bold())
+            .active("☰".with(theme!().accent).bold())
+            .into(),
+        StatefulString::from("☰".with(theme!().primary))
+            .hovered("☰".with(theme!().accent))
+            .active("☰".with(theme!().accent))
+            .into(),
+        false,
+    );
+    log_radio.id = Some(1);
+
+    (view_group, control_radio, log_radio)
+}
+
+pub fn new_header(view_group: RadioGroup, control_radio: Radio, log_radio: Radio) -> Grid {
+    let mut header = Grid::new((4, 1));
+    // ♪ ◇
+
+    header.data[0] = GridItem::Radio(control_radio, view_group);
+    header.data[1] = GridItem::Radio(log_radio, view_group);
+
+    header.data[2] = GridItem::Button(Button::from(
+        StatefulString::from("⋮".with(theme!().primary))
+            .hovered("⋮".with(theme!().accent))
+            .active("⋮".with(theme!().accent).bold()),
     ));
-    header.data[1] = GridItem::Button(Button::from(
-        StatefulString::from("x".with(THEME.get().unwrap().primary))
-            .hovered("x".with(THEME.get().unwrap().accent))
-            .active("x".with(THEME.get().unwrap().accent).bold()),
+    header.data[3] = GridItem::Button(Button::from(
+        StatefulString::from("x".with(theme!().primary))
+            .hovered("x".with(theme!().accent))
+            .active("x".with(theme!().accent).bold()),
     ));
 
-    header.left_spacer = StatefulString::from("[  ".with(THEME.get().unwrap().primary))
-        .hovered("[  ".with(THEME.get().unwrap().accent))
-        .active("[  ".with(THEME.get().unwrap().accent).bold())
+    header.left_spacer = StatefulString::from("[  ".with(theme!().primary))
+        .hovered("[  ".with(theme!().accent))
+        .active("[  ".with(theme!().accent).bold())
         .clone();
-    header.right_spacer = StatefulString::from("  ]".with(THEME.get().unwrap().primary))
-        .hovered("  ]".with(THEME.get().unwrap().accent))
-        .active("  ]".with(THEME.get().unwrap().accent).bold())
+    header.right_spacer = StatefulString::from("  ]".with(theme!().primary))
+        .hovered("  ]".with(theme!().accent))
+        .active("  ]".with(theme!().accent).bold())
         .clone();
     header.horizontal_spacer = "  ".into();
     header
@@ -33,48 +70,48 @@ pub fn new_header() -> retro_engine::components::Grid {
 pub fn new_audio_controls() -> retro_engine::components::Grid {
     let mut audio_controls = Grid::new((5, 1));
     audio_controls.data[0] = GridItem::Button(Button::from(
-        StatefulString::from("⇆".with(THEME.get().unwrap().primary))
-            .hovered("⇆".with(THEME.get().unwrap().accent))
-            .active("⇆".with(THEME.get().unwrap().accent).bold()),
+        StatefulString::from("⇆".with(theme!().primary))
+            .hovered("⇆".with(theme!().accent))
+            .active("⇆".with(theme!().accent).bold()),
     ));
     audio_controls.data[1] = GridItem::Button(Button::from(
-        StatefulString::from("⭰".with(THEME.get().unwrap().primary))
-            .hovered("⭰".with(THEME.get().unwrap().accent))
-            .active("⭰".with(THEME.get().unwrap().accent).bold()),
+        StatefulString::from("⭰".with(theme!().primary))
+            .hovered("⭰".with(theme!().accent))
+            .active("⭰".with(theme!().accent).bold()),
     ));
     audio_controls.data[2] = GridItem::Toggle(Toggle::new(
-        StatefulString::from("⏵".with(THEME.get().unwrap().primary))
-            .hovered("⏵".with(THEME.get().unwrap().accent))
-            .active("⏵".with(THEME.get().unwrap().accent).bold())
+        StatefulString::from("⏵".with(theme!().primary))
+            .hovered("⏵".with(theme!().accent))
+            .active("⏵".with(theme!().accent).bold())
             .into(),
-        StatefulString::from("⏸".with(THEME.get().unwrap().primary))
-            .hovered("Ⅱ".with(THEME.get().unwrap().accent))
-            .active("Ⅱ".with(THEME.get().unwrap().accent).bold())
+        StatefulString::from("⏸".with(theme!().primary))
+            .hovered("Ⅱ".with(theme!().accent))
+            .active("Ⅱ".with(theme!().accent).bold())
             .into(),
         true,
     ));
     audio_controls.data[3] = GridItem::Button(Button::from(
-        StatefulString::from("⭲".with(THEME.get().unwrap().primary))
-            .hovered("⭲".with(THEME.get().unwrap().accent))
-            .active("⭲".with(THEME.get().unwrap().accent).bold()),
+        StatefulString::from("⭲".with(theme!().primary))
+            .hovered("⭲".with(theme!().accent))
+            .active("⭲".with(theme!().accent).bold()),
     ));
     audio_controls.data[4] = GridItem::Button(Button::from(
-        StatefulString::from("⮌".with(THEME.get().unwrap().primary))
-            .hovered("⮌".with(THEME.get().unwrap().accent))
-            .active("⮌".with(THEME.get().unwrap().accent).bold()),
+        StatefulString::from("⮌".with(theme!().primary))
+            .hovered("⮌".with(theme!().accent))
+            .active("⮌".with(theme!().accent).bold()),
     ));
     // audio_controls.data[2] = StatefulString::from("⏵Ⅱ⏸‖")
-    //     .hovered("⏵".with(THEME.get().unwrap().accent))
-    //     .active("⏵".with(THEME.get().unwrap().accent).bold())
+    //     .hovered("⏵".with(theme!().accent))
+    //     .active("⏵".with(theme!().accent).bold())
     //     .into();
 
-    audio_controls.left_spacer = StatefulString::from("[  ".with(THEME.get().unwrap().primary))
-        .hovered("[  ".with(THEME.get().unwrap().accent))
-        .active("[  ".with(THEME.get().unwrap().accent).bold())
+    audio_controls.left_spacer = StatefulString::from("[  ".with(theme!().primary))
+        .hovered("[  ".with(theme!().accent))
+        .active("[  ".with(theme!().accent).bold())
         .clone();
-    audio_controls.right_spacer = StatefulString::from("  ]".with(THEME.get().unwrap().primary))
-        .hovered("  ]".with(THEME.get().unwrap().accent))
-        .active("  ]".with(THEME.get().unwrap().accent).bold())
+    audio_controls.right_spacer = StatefulString::from("  ]".with(theme!().primary))
+        .hovered("  ]".with(theme!().accent))
+        .active("  ]".with(theme!().accent).bold())
         .clone();
     audio_controls.horizontal_spacer = "  ".into();
     audio_controls
@@ -82,12 +119,9 @@ pub fn new_audio_controls() -> retro_engine::components::Grid {
 
 pub fn new_player_bar() -> retro_engine::components::ProgressBar {
     let mut player_bar = ProgressBar::default();
-    player_bar.left("━".with(THEME.get().unwrap().accent));
-    player_bar.pointer(vec![
-        "╺".with(THEME.get().unwrap().primary),
-        "╸".with(THEME.get().unwrap().accent),
-    ]);
-    player_bar.right("━".with(THEME.get().unwrap().primary));
+    player_bar.left("━".with(theme!().accent));
+    player_bar.pointer(vec!["╺".with(theme!().primary), "╸".with(theme!().accent)]);
+    player_bar.right("━".with(theme!().primary));
 
     player_bar.minimum = 0;
     player_bar.maximum = 500;
@@ -97,7 +131,7 @@ pub fn new_player_bar() -> retro_engine::components::ProgressBar {
     player_bar
 }
 
-pub fn update_view(
+pub fn update_control_view(
     player_bar: &mut ProgressBar,
     side_bar: &VerticalLine,
     song_list: &Grid,
@@ -120,7 +154,7 @@ pub fn update_view(
         player_bar.maximum / 60,
         player_bar.maximum % 60
     )
-    .with(THEME.get().unwrap().primary)
+    .with(theme!().primary)
     .to_string();
 
     let mut view = retro_engine::scene::align_horizontally(
@@ -140,8 +174,8 @@ pub fn update_view(
     let occupied_space = song_list_length + 2;
     let left_space = terminal.screen.width - occupied_space as u16 - 1;
 
-    let application_name = "Retro Player ♪"
-        .with(THEME.get().unwrap().accent)
+    let application_name = "Retro Player - Control View ♪"
+        .with(theme!().accent)
         .to_string();
     let header_spacer = Text::new(
         "",
@@ -185,13 +219,9 @@ pub fn update_view(
     let control_middle = format!(
         "{}  {}  {}",
         audio_controls.display(),
-        control_panel.display().with(THEME.get().unwrap().primary),
+        control_panel.display().with(theme!().primary),
         volume_bar.display()
     );
-    // println!(
-    //     "{:?} {:?}",
-    //     header_spacer.min_width, control_panel.min_width
-    // );
 
     let player_bar_width = (left_space - 14) as u32;
     player_bar.width = player_bar_width;
@@ -205,15 +235,88 @@ pub fn update_view(
     view
 }
 
+pub fn update_log_view(
+    side_bar: &VerticalLine,
+    song_list: &Grid,
+    header: &Grid,
+    control_panel: &mut Text,
+    log: &LogDisplay,
+    terminal: &Terminal,
+) -> String {
+    let mut view = retro_engine::scene::align_horizontally(
+        side_bar.display(),
+        song_list.display(),
+        "".to_string(),
+    );
+
+    let mut song_names = vec![];
+    for song in song_list.data.iter() {
+        if let GridItem::StatefulString(song_name) = song {
+            song_names.push(song_name.default.clone());
+        }
+    }
+
+    let song_list_length = retro_engine::utilities::max_length(&song_names);
+    let occupied_space = song_list_length + 2;
+    let left_space = terminal.screen.width - occupied_space as u16 - 1;
+
+    let middle_spacer_length = left_space;
+    control_panel.min_width = Some(middle_spacer_length);
+    control_panel.max_width = Some(middle_spacer_length);
+
+    if length(&control_panel.text.default) > control_panel.max_width.unwrap() as usize {
+        control_panel.offset += if terminal.polls % 8 == 0 { 1 } else { 0 };
+        if control_panel.offset as usize > length(&control_panel.text.default) {
+            control_panel.offset = 0
+        }
+    } else {
+        control_panel.offset = 0;
+    }
+
+    let application_name = "Retro Player - Log View ☰"
+        .with(theme!().accent)
+        .to_string();
+    let header_spacer = Text::new(
+        "",
+        Some(
+            left_space
+                - retro_engine::utilities::length(&header.display()) as u16
+                - retro_engine::utilities::length(&application_name) as u16,
+        ),
+        Some(
+            left_space
+                - retro_engine::utilities::length(&header.display()) as u16
+                - retro_engine::utilities::length(&application_name) as u16,
+        ),
+        0,
+        false,
+    );
+
+    let control_top = format!(
+        "{}{}{}",
+        application_name,
+        header_spacer.display(),
+        header.display()
+    );
+
+    let control_middle = format!("{}", control_panel.display().with(theme!().primary));
+    let control_bottom = format!("{}", log.display());
+
+    let control = format!("{}\n{}\n{}", control_top, control_middle, control_bottom);
+
+    view = retro_engine::scene::align_horizontally(view, control, "  ".to_string());
+    view
+}
+
 pub fn update_song_list(song_list: &mut Grid, player: &PlayerSession) {
     song_list.data[0] = GridItem::StatefulString(StatefulString::from(
-        " ".with(THEME.get().unwrap().secondary).to_string()
+        " ".with(theme!().secondary).to_string()
             + &player
                 .peek_previous()
                 .unwrap_or((&String::from("None"), &String::from("None")))
                 .0
                 .clone()
-                .with(THEME.get().unwrap().secondary)
+                .with(theme!().secondary)
                 .to_string(),
     ));
 
@@ -224,17 +327,17 @@ pub fn update_song_list(song_list: &mut Grid, player: &PlayerSession) {
                 .unwrap_or((&String::from("None"), &String::from("None")))
                 .0
                 .clone()
-                .with(THEME.get().unwrap().primary)
+                .with(theme!().primary)
                 .to_string(),
     ));
     song_list.data[2] = GridItem::StatefulString(StatefulString::from(
-        "     ".with(THEME.get().unwrap().secondary).to_string()
+        "     ".with(theme!().secondary).to_string()
             + &player
                 .peek_next()
                 .unwrap_or((&String::from("None"), &String::from("None")))
                 .0
                 .clone()
-                .with(THEME.get().unwrap().secondary)
+                .with(theme!().secondary)
                 .to_string(),
     ));
 }

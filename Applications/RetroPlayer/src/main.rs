@@ -1,81 +1,70 @@
+use directories::ProjectDirs;
 use discord_presence::{
-    models::{Activity, ActivityType},
     Client,
+    models::{Activity, ActivityType},
 };
 use kira::{
-    sound::static_sound::StaticSoundData, sound::static_sound::StaticSoundHandle, AudioManager,
-    AudioManagerSettings, DefaultBackend, Tween,
+    AudioManager, AudioManagerSettings, DefaultBackend, Tween,
+    sound::static_sound::StaticSoundData, sound::static_sound::StaticSoundHandle,
 };
+use retro_engine::Stylize;
 use retro_engine::components::trait_def::Component;
 use retro_engine::components::*;
 use retro_engine::core::Terminal;
 use retro_engine::feeders::trait_def::Feeder;
-use retro_engine::Stylize;
-use std::sync::{Arc, Mutex};
-use toml::from_slice;
+use std::sync::{Arc, LazyLock, Mutex};
 
 mod builders;
 mod components;
 mod configuration;
 mod handlers;
+mod logger;
 mod player;
 mod presence;
 mod theme;
+mod views;
 
 use builders::*;
 use components::*;
 use configuration::*;
-use handlers::*;
+use logger::*;
 use player::*;
 use presence::*;
-use theme::*;
+use views::*;
+
+pub static PROJECT_DIRECTORY: LazyLock<ProjectDirs> = LazyLock::new(|| {
+    let project_directory = ProjectDirs::from("is-a.dev", "The-Nice-One", "RetroPlayer");
+    project_directory.expect("Application directory not found")
+});
 
 fn main() {
-    let configuration_file = get_configuration_file();
-    if configuration_file.is_none() {
-        return;
-    }
-    let configuration_path = configuration_file.clone().unwrap().0;
-    let configuration_file = configuration_file.unwrap().1.clone();
-    let configuration: Configuration = from_slice(&configuration_file).unwrap();
-
     let mut player = PlayerSession::default();
-    player.add_songs(&configuration.songs_directory);
-
-    if player.songs.is_empty() {
-        println!(
-            "{} No songs found in {}. Please add some songs to the directory.",
-            "[ Error: ".red(),
-            &configuration.songs_directory
-        );
-        return;
-    }
+    player.add_songs(&configuration!().songs_directory);
 
     let mut discord_rpc_handles = vec![];
-    let discord_rpc = if configuration.discord_presence {
+    let discord_rpc = if configuration!().discord_presence {
+        LOGGER.lock().unwrap().add_entry(
+            EntryId::DiscordPresence,
+            Entry::new(String::from("Starting discord presence")),
+        );
         Arc::new(Mutex::new(Some(Client::new(1421950568858910758))))
     } else {
         Arc::new(Mutex::new(None))
     };
     start_discord_rpc(&discord_rpc, &mut discord_rpc_handles);
 
-    init_theme(
-        configuration.theme.primary,
-        configuration.theme.secondary,
-        configuration.theme.accent,
-    );
-
     let mut terminal = Terminal::init();
     terminal.hide_cursor();
+    terminal.configuration.overwrite_lines = true;
 
     let mut manager = AudioManager::<DefaultBackend>::new(AudioManagerSettings::default()).unwrap();
     let mut sound: Option<StaticSoundHandle> = None;
 
     let mut side_bar = VerticalLine::default();
     side_bar
-        .start("┌".with(THEME.get().unwrap().accent))
-        .middle("|".with(THEME.get().unwrap().accent))
-        .end("└".with(THEME.get().unwrap().accent))
+        .start("┌".with(theme!().accent))
+        .middle("|".with(theme!().accent))
+        .end("└".with(theme!().accent))
         .height(3);
 
     let mut song_list = Grid::new((1, 3));
@@ -83,7 +72,8 @@ fn main() {
     let mut volume_bar = VolumeBar::new();
     let mut player_bar = new_player_bar();
 
-    let mut header = new_header();
+    let (view_group, control_radio, log_radio) = new_view_group();
+    let mut header = new_header(view_group, control_radio.clone(), log_radio.clone());
     header.set_state(State::Hovered);
     let mut control_panel = Text::new(
         "ARROW keys to navigate between items, ENTER key to select, and ESC key to go back   ",
@@ -93,15 +83,20 @@ fn main() {
         true,
     );
 
-    let mut controller = retro_engine::feeders::GridFeeder::new((2, 2));
-    controller.hovered = (1, 0);
+    let log = LogDisplay::from_logger(&LOGGER);
+
+    let mut null_component = retro_engine::components::Null::disabled();
+    let mut view_registry = ViewRegistry::<AppView>::new();
+
+    view_registry.register(Box::new(ControlView::new()));
+    view_registry.register(Box::new(LogView::new()));
 
     let mut running = true;
     while running {
         terminal.poll(50);
         terminal.top();
 
-        if manager.main_track().num_sounds() == 0 {
+        if manager.main_track().num_sounds() == 0 && !player.songs.is_empty() {
             player.next();
 
             let sound_data = StaticSoundData::from_file(player.current().unwrap().1).unwrap();
@@ -122,63 +117,39 @@ fn main() {
             update_discord_rpc(&discord_rpc, &mut discord_rpc_handles, activity);
         }
 
-        if terminal.event.is_some() {
-            let event = terminal.event.as_ref().unwrap().to_owned();
-            controller.feed(
-                &event,
-                vec![
-                    Box::new(&mut retro_engine::components::Null::disabled()),
-                    Box::new(&mut header),
-                    Box::new(&mut audio_controls),
-                    Box::new(&mut volume_bar),
-                ],
-            );
-
-            handle_header_controls(
-                &mut header,
-                &mut control_panel,
-                &configuration_path,
-                &mut running,
-            );
-            handle_audio_controls(
-                &audio_controls,
-                &mut player,
-                &mut sound,
-                &mut player_bar,
-                &mut song_list,
-                &mut control_panel,
-            );
-
-            if volume_bar.get_state().unwrap_or(State::Disabled) == State::Hovered {
-                control_panel.text.default("Volume Controls - Adjust   ");
-                control_panel.offset = 0;
+        if let Some(radio) = header.get_active_radio(view_group) {
+            if let Some(id) = radio.id {
+                view_registry.switch_to(id);
             }
-            if volume_bar.get_state().unwrap_or(State::Disabled) == State::Active {
-                control_panel
-                    .text
-                    .default("Adjust Volume - UP or DOWN arrow keys   ");
-                control_panel.offset = 0;
-            }
-
-            sound
-                .as_mut()
-                .unwrap()
-                .set_volume(volume_bar.db, Tween::default());
         }
+        if let Some(view) = view_registry.current_view() {
+            let mut view_state = ViewState {
+                header: &mut header,
+                control_panel: &mut control_panel,
+                side_bar: &side_bar,
+                song_list: &mut song_list,
+                terminal: &terminal,
+                running: &mut running,
+                null_component: &mut null_component,
+                player_bar: &mut player_bar,
+                audio_controls: &mut audio_controls,
+                volume_bar: &mut volume_bar,
+                sound: &mut sound,
+                player: &mut player,
+                log: &log,
+            };
 
-        let view = update_view(
-            &mut player_bar,
-            &side_bar,
-            &song_list,
-            &header,
-            &mut control_panel,
-            &audio_controls,
-            &volume_bar,
-            &terminal,
-            &sound,
-        );
+            if terminal.event.is_some() {
+                let event = terminal.event.as_ref().unwrap().to_owned();
 
-        terminal.print(&view);
+                let components = view.components(&mut view_state);
+                view.controller().feed(&event, components);
+                view.handle_event(&event, &mut view_state);
+            }
+
+            let rendered = view.render(&mut view_state);
+            terminal.print(&rendered);
+        }
     }
 
     terminal.deinit();

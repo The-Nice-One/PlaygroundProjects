@@ -1,3 +1,4 @@
+use crate::{logger, logger::*};
 use indexmap::IndexMap;
 use rand::rng;
 use rand::seq::SliceRandom;
@@ -14,7 +15,16 @@ impl PlayerSession {
         let song_directory = read_dir(directory).unwrap();
 
         for song in song_directory {
+            let file_type = song.as_ref().unwrap().file_type().unwrap();
             let full_path = song.as_ref().unwrap().path().to_str().unwrap().to_owned();
+
+            if file_type.is_dir() {
+                self.add_songs(&full_path);
+                continue;
+            }
+            if !file_type.is_file() {
+                continue;
+            }
 
             let file_name = song
                 .as_ref()
@@ -36,6 +46,11 @@ impl PlayerSession {
 
             self.songs.insert(song_name, full_path);
         }
+
+        logger!().add_entry(
+            EntryId::Player,
+            Entry::new_complete(format!("Loaded {} songs into the player", self.songs.len())),
+        );
     }
     pub fn previous(&mut self) {
         if self.current_index == 0 {

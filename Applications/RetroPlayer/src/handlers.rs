@@ -1,14 +1,12 @@
-use crate::update_song_list;
+use std::path::PathBuf;
+
 use crate::PlayerSession;
-use kira::{sound::static_sound::StaticSoundHandle, sound::PlaybackState, Tween};
+use crate::configuration::get_configuration_path;
+use crate::update_song_list;
+use kira::{Tween, sound::PlaybackState, sound::static_sound::StaticSoundHandle};
 use retro_engine::components::*;
 
-pub fn handle_header_controls(
-    header: &mut Grid,
-    control_panel: &mut Text,
-    configuration_path: &String,
-    running: &mut bool,
-) {
+pub fn handle_header_controls(header: &mut Grid, control_panel: &mut Text, running: &mut bool) {
     if header.get_state().unwrap_or(State::Disabled) == State::Hovered {
         control_panel
             .text
@@ -18,19 +16,34 @@ pub fn handle_header_controls(
 
     if header.get_state().unwrap_or(State::Disabled) == State::Active {
         if header.data[0].get_state().unwrap_or(State::Disabled) == State::Hovered {
-            control_panel.text.default(format!(
-                "Settings - Edit the configuration file at {}   ",
-                configuration_path
-            ));
+            control_panel
+                .text
+                .default("Switch to Contrl View - ENTER key   ");
             control_panel.offset = 0;
         }
         if header.data[1].get_state().unwrap_or(State::Disabled) == State::Hovered {
             control_panel
                 .text
+                .default("Switch to Log View - ENTER key   ");
+            control_panel.offset = 0;
+        }
+        if header.data[2].get_state().unwrap_or(State::Disabled) == State::Hovered {
+            control_panel.text.default(format!(
+                "Settings - Edit the configuration file at {}   ",
+                get_configuration_path()
+                    .unwrap_or(PathBuf::new())
+                    .to_str()
+                    .unwrap()
+            ));
+            control_panel.offset = 0;
+        }
+        if header.data[3].get_state().unwrap_or(State::Disabled) == State::Hovered {
+            control_panel
+                .text
                 .default("Exit Application - ENTER key   ");
             control_panel.offset = 0;
         }
-        if header.data[1].get_state().unwrap_or(State::Disabled) == State::Active {
+        if header.data[3].get_state().unwrap_or(State::Disabled) == State::Active {
             *running = false;
         }
     }

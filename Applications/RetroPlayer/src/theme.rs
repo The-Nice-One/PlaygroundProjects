@@ -1,25 +1,10 @@
 use retro_engine::Color;
-use std::sync::OnceLock;
 
-pub struct Theme {
-    pub primary: Color,
-    pub secondary: Color,
-    pub accent: Color,
-}
-
-pub static THEME: OnceLock<Theme> = OnceLock::new();
-
-pub fn init_theme(primary: String, secondary: String, accent: String) {
-    THEME.get_or_init(|| {
-        let primary = color_from_string(primary);
-        let secondary = color_from_string(secondary);
-        let accent = color_from_string(accent);
-        Theme {
-            primary,
-            secondary,
-            accent,
-        }
-    });
+#[macro_export]
+macro_rules! theme {
+    () => {
+        configuration!().theme
+    };
 }
 
 pub fn color_from_string(color: String) -> Color {

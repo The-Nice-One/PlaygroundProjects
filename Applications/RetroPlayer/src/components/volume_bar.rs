@@ -1,4 +1,5 @@
-use crate::theme::THEME;
+use crate::theme;
+use crate::{configuration, configuration::*};
 use retro_engine::components::*;
 use retro_engine::{Event, KeyCode, Stylize};
 
@@ -16,16 +17,16 @@ impl VolumeBar {
     pub fn new() -> Self {
         let mut volume = ProgressBar::default();
 
-        volume.left("█".with(THEME.get().unwrap().accent));
+        volume.left("█".with(theme!().accent));
         volume.pointer(vec![
-            "▁".with(THEME.get().unwrap().accent),
-            "▂".with(THEME.get().unwrap().accent),
-            "▃".with(THEME.get().unwrap().accent),
-            "▄".with(THEME.get().unwrap().accent),
-            "▅".with(THEME.get().unwrap().accent),
-            "▆".with(THEME.get().unwrap().accent),
-            "▇".with(THEME.get().unwrap().accent),
-            "█".with(THEME.get().unwrap().accent),
+            "▁".with(theme!().accent),
+            "▂".with(theme!().accent),
+            "▃".with(theme!().accent),
+            "▄".with(theme!().accent),
+            "▅".with(theme!().accent),
+            "▆".with(theme!().accent),
+            "▇".with(theme!().accent),
+            "█".with(theme!().accent),
         ]);
         volume.minimum = 0;
         volume.maximum = 200;
@@ -36,13 +37,13 @@ impl VolumeBar {
             value: 100,
             db: Self::volume_to_db(100),
             state: State::Default,
-            left: StatefulString::from("[  ".with(THEME.get().unwrap().primary))
-                .hovered("[  ".with(THEME.get().unwrap().accent))
-                .active("[  ".with(THEME.get().unwrap().accent).bold())
+            left: StatefulString::from("[  ".with(theme!().primary))
+                .hovered("[  ".with(theme!().accent))
+                .active("[  ".with(theme!().accent).bold())
                 .into(),
-            right: StatefulString::from("  ]".with(THEME.get().unwrap().primary))
-                .hovered("  ]".with(THEME.get().unwrap().accent))
-                .active("  ]".with(THEME.get().unwrap().accent).bold())
+            right: StatefulString::from("  ]".with(theme!().primary))
+                .hovered("  ]".with(theme!().accent))
+                .active("  ]".with(theme!().accent).bold())
                 .into(),
             progress_bar: volume,
         }
@@ -64,7 +65,7 @@ impl std::fmt::Display for VolumeBar {
             f,
             "{}{} {}{}",
             self.left.display(),
-            format!("{}%", self.value).with(THEME.get().unwrap().primary),
+            format!("{}%", self.value).with(theme!().primary),
             self.progress_bar.display(),
             self.right.display()
         )
@@ -76,18 +77,18 @@ impl Component for VolumeBar {
         format!("{}", self)
     }
     fn feed(&mut self, event: &retro_engine::Event) {
-        if self.state == State::Active {
-            if let Event::Key(event) = event {
-                if event.code == KeyCode::Up && self.value < 200 {
-                    self.value += 1;
-                    self.progress_bar.value = self.value;
-                    self.db = Self::volume_to_db(self.value);
-                }
-                if event.code == KeyCode::Down && self.value > 0 {
-                    self.value -= 1;
-                    self.progress_bar.value = self.value;
-                    self.db = Self::volume_to_db(self.value);
-                }
+        if let Event::Key(event) = event
+            && self.state == State::Active
+        {
+            if event.code == KeyCode::Up && self.value < 200 {
+                self.value += 1;
+                self.progress_bar.value = self.value;
+                self.db = Self::volume_to_db(self.value);
+            }
+            if event.code == KeyCode::Down && self.value > 0 {
+                self.value -= 1;
+                self.progress_bar.value = self.value;
+                self.db = Self::volume_to_db(self.value);
             }
         }
     }
