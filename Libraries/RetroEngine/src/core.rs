@@ -15,8 +15,18 @@ use crate::utilities::{length, take};
 
 pub struct Terminal {
     pub screen: Screen,
+    pub configuration: Configuration,
     pub event: Option<Event>,
     pub polls: u64,
+    pub cache: Cache,
+}
+
+pub struct Configuration {
+    pub overwrite_lines: bool,
+}
+
+pub struct Cache {
+    pub max_height: u16,
 }
 
 pub struct Screen {
@@ -34,8 +44,12 @@ impl Terminal {
                 width: crossterm::terminal::size().unwrap().0,
                 height: crossterm::terminal::size().unwrap().1,
             },
+            configuration: Configuration {
+                overwrite_lines: false,
+            },
             event: None,
             polls: 0,
+            cache: Cache { max_height: 0 },
         }
     }
     pub fn hide_cursor(&self) {
@@ -48,8 +62,18 @@ impl Terminal {
         crossterm::terminal::disable_raw_mode().unwrap();
         crossterm::execute!(stdout(), crossterm::event::DisableFocusChange).unwrap();
     }
-    pub fn print(&self, string: &str) -> String {
+    pub fn print(&mut self, string: &str) -> String {
         let mut strings: Vec<String> = string.split("\n").map(|s| s.to_string()).collect();
+
+        let frame_height = strings.len() as u16;
+        if self.configuration.overwrite_lines {
+            if frame_height < self.cache.max_height {
+                for _ in 0..(self.cache.max_height - frame_height) {
+                    strings.push(String::new());
+                }
+            }
+        }
+
         for string in strings.iter_mut() {
             let dif = self.screen.width as isize
                 - String::from_utf8(strip_ansi_escapes::strip(string.clone()))
@@ -71,7 +95,10 @@ impl Terminal {
             // stdout().queue(crossterm::cursor::MoveToColumn(0));
         }
         stdout().flush().unwrap();
-        strings.join("")
+        if strings.len() > self.cache.max_height as usize {
+            self.cache.max_height = strings.len() as u16;
+        }
+        strings.join("\n")
     }
     pub fn poll(&mut self, timeout: u64) {
         self.screen.width = crossterm::terminal::size().unwrap().0;
