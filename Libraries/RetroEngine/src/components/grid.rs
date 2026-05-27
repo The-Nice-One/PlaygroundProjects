@@ -138,6 +138,10 @@ impl Component for Grid {
     }
     fn feed(&mut self, event: &crossterm::event::Event) {
         if let crossterm::event::Event::Key(key_event) = event {
+            if key_event.kind == crossterm::event::KeyEventKind::Release {
+                return;
+            }
+
             let old_index = (self.hovered.0 + self.hovered.1 * self.size.0) as usize;
             let old_hovered = self.hovered;
 

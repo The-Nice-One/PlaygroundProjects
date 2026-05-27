@@ -43,6 +43,10 @@ impl Component for Button {
     fn feed(&mut self, event: &crossterm::event::Event) {
         if self.state == State::Hovered || self.state == State::Active {
             if let crossterm::event::Event::Key(event) = event {
+                if event.kind == crossterm::event::KeyEventKind::Release {
+                    return;
+                }
+                
                 if event.code == crossterm::event::KeyCode::Enter {
                     self.state = State::Active;
                 } else {

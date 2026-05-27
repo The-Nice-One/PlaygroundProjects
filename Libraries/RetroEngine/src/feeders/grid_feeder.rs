@@ -24,6 +24,10 @@ impl Feeder for GridFeeder {
     ) {
         let mut pressed_escape = false;
         if let crossterm::event::Event::Key(key_event) = event {
+            if key_event.kind == crossterm::event::KeyEventKind::Release {
+                return;
+            }
+
             if key_event.code == crossterm::event::KeyCode::Esc {
                 pressed_escape = true;
             }
