@@ -39,7 +39,6 @@ impl View<ViewState<'_>> for ControlView {
             state.audio_controls,
             state.player,
             state.sound,
-            state.player_bar,
             state.song_list,
             state.control_panel,
         );

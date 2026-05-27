@@ -12,6 +12,10 @@ use retro_engine::components::trait_def::Component;
 use retro_engine::components::*;
 use retro_engine::core::Terminal;
 use retro_engine::feeders::trait_def::Feeder;
+use souvlaki::{
+    MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition,
+    PlatformConfig,
+};
 use std::sync::{Arc, LazyLock, Mutex};
 
 mod builders;
@@ -52,6 +56,35 @@ fn main() {
         Arc::new(Mutex::new(None))
     };
     start_discord_rpc(&discord_rpc, &mut discord_rpc_handles);
+
+    let (media_tx, media_rx) = std::sync::mpsc::channel();
+    let mut media_controls = {
+        let config = PlatformConfig {
+            dbus_name: "retro_player",
+            display_name: "Retro Player",
+            #[cfg(target_os = "windows")]
+            hwnd: unsafe {
+                use windows_sys::Win32::UI::WindowsAndMessaging::*;
+                // Create a hidden window to host SMTC
+                let hwnd = CreateWindowExA(
+                    0,
+                    "STATIC\0".as_ptr(),
+                    "RetroPlayerMediaHost\0".as_ptr() as *const u8, // Explicit cast for clarity
+                    0, 0, 0, 0, 0,
+                    std::ptr::null_mut(), // No parent (top-level)
+                    std::ptr::null_mut(), // No menu
+                    std::ptr::null_mut(), // No instance
+                    std::ptr::null()
+                );
+                if hwnd == std::ptr::null_mut() { None } else { Some(hwnd as _) }
+            },
+            #[cfg(not(target_os = "windows"))]
+            hwnd: None,
+        };
+        let mut controls = MediaControls::new(config).expect("Failed to init media controls");
+        controls.attach(move |event| { let _ = media_tx.send(event); }).ok();
+        controls
+    };
 
     let mut terminal = Terminal::init();
     terminal.hide_cursor();
@@ -104,6 +137,15 @@ fn main() {
             player_bar.maximum = duration.as_secs() as u32;
             sound = Some(manager.play(sound_data.clone()).unwrap());
 
+                let song_name = player.current().unwrap().0.clone();
+                media_controls.set_metadata(MediaMetadata {
+                    title: Some(&song_name),
+                    artist: Some("Retro Player"),
+                    album: None,
+                    duration: Some(std::time::Duration::from_secs(player_bar.maximum as u64)),
+                    cover_url: None,
+                }).ok();
+
             update_song_list(&mut song_list, &player);
             let activity = Activity::new()
                 .activity_type(ActivityType::Listening)
@@ -115,6 +157,50 @@ fn main() {
                         .clone(),
                 );
             update_discord_rpc(&discord_rpc, &mut discord_rpc_handles, activity);
+        }
+
+        if let Some(s) = &sound {
+            let playback = match s.state() {
+                kira::sound::PlaybackState::Playing => MediaPlayback::Playing { 
+                    progress: Some(MediaPosition(std::time::Duration::from_secs_f64(s.position()))) 
+                },
+                kira::sound::PlaybackState::Paused => MediaPlayback::Paused { 
+                    progress: Some(MediaPosition(std::time::Duration::from_secs_f64(s.position()))) 
+                },
+                _ => MediaPlayback::Stopped,
+            };
+            media_controls.set_playback(playback).ok();
+
+            if let GridItem::Toggle(toggle) = &mut audio_controls.data[2] {
+                toggle.is_on = s.state() == kira::sound::PlaybackState::Playing;
+            }
+        }
+
+        while let Ok(event) = media_rx.try_recv() {
+            match event {
+                MediaControlEvent::Play | MediaControlEvent::Pause | MediaControlEvent::Toggle => {
+                    if let Some(s) = sound.as_mut() {
+                        match s.state() {
+                            kira::sound::PlaybackState::Playing => { s.pause(Tween::default()); }
+                            kira::sound::PlaybackState::Paused => { s.resume(Tween::default()); }
+                            _ => {}
+                        }
+                    }
+                }
+                MediaControlEvent::Next => {
+                    if let Some(s) = sound.as_mut() {
+                        s.stop(Tween::default());
+                    }
+                }
+                MediaControlEvent::Previous => {
+                    player.previous();
+                    player.previous();
+                    if let Some(s) = sound.as_mut() {
+                        s.stop(Tween::default());
+                    }
+                }
+                _ => {}
+            }
         }
 
         if let Some(radio) = header.get_active_radio(view_group) {
@@ -153,7 +239,9 @@ fn main() {
     }
 
     terminal.deinit();
-    sound.as_mut().unwrap().stop(Tween::default());
+    if let Some(mut s) = sound {
+        s.stop(Tween::default());
+    }
 
     for handle in discord_rpc_handles {
         handle.join().unwrap();

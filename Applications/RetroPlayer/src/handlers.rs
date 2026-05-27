@@ -53,7 +53,6 @@ pub fn handle_audio_controls(
     audio_controls: &Grid,
     player: &mut PlayerSession,
     sound: &mut Option<StaticSoundHandle>,
-    player_bar: &mut ProgressBar,
     song_list: &mut Grid,
     control_panel: &mut Text,
 ) {
@@ -101,7 +100,7 @@ pub fn handle_audio_controls(
     {
         player.previous();
         player.previous();
-        sound.as_mut().unwrap().seek_to(player_bar.maximum as f64);
+        sound.as_mut().unwrap().stop(Tween::default());
     }
 
     if audio_controls.data[2]
@@ -143,7 +142,7 @@ pub fn handle_audio_controls(
         == State::Active
         && sound.is_some()
     {
-        sound.as_mut().unwrap().seek_to(player_bar.maximum as f64);
+        sound.as_mut().unwrap().stop(Tween::default());
     }
 
     if audio_controls.data[4]

@@ -6,6 +6,8 @@ edition = "2024"
 [dependencies]
 retro_engine = { git = "https://github.com/The-Nice-One/PlaygroundProjects" }
 discord-presence = "2.1.0"
+souvlaki = "0.8.3"
+windows-sys = { version = "0.61", features = ["Win32_System_Console", "Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
 kira = "0.10.4"
 indexmap = "2.9.0"
 rand = "0.9.1"
