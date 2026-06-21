@@ -7,9 +7,6 @@ use std::time::Duration;
 use crossterm::event::{poll, read, Event};
 
 use crossterm::QueueableCommand;
-use unicode_segmentation::UnicodeSegmentation;
-
-use strip_ansi_escapes;
 
 use crate::utilities::{length, take};
 
@@ -38,6 +35,11 @@ impl Terminal {
     pub fn init() -> Self {
         crossterm::terminal::enable_raw_mode().unwrap();
         crossterm::execute!(stdout(), crossterm::event::EnableFocusChange).unwrap();
+        crossterm::execute!(
+            stdout(),
+            crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
+        )
+        .unwrap();
 
         Self {
             screen: Screen {
@@ -74,25 +76,21 @@ impl Terminal {
             }
         }
 
-        for string in strings.iter_mut() {
-            let dif = self.screen.width as isize
-                - String::from_utf8(strip_ansi_escapes::strip(string.clone()))
-                    .unwrap()
-                    .graphemes(true)
-                    .count() as isize;
-            if dif > 0 {
-                *string += String::from(" ").repeat(dif as usize).as_str();
-            }
-            if length(&string) > self.screen.width as usize {
-                // For some reason screen width is inaccurate? so we subtract 1 from the width which
-                // seems to work.
+        for (row_index, string) in strings.iter_mut().enumerate() {
+            let row_index = row_index as u16;
+
+            let current_length = length(&string);
+
+            if current_length < self.screen.width as usize {
+                *string += &" ".repeat(self.screen.width as usize - current_length);
+            } else if current_length > self.screen.width as usize && self.screen.width > 0 {
                 *string = take(&string, 0, self.screen.width as usize - 1);
             }
-            //stdout().queue(crossterm::cursor::MoveToColumn(0));
+
+            stdout()
+                .queue(crossterm::cursor::MoveTo(0, row_index))
+                .unwrap();
             stdout().queue(crossterm::style::Print(string)).unwrap();
-            //stdout().queue(crossterm::cursor::MoveToNextLine(1));
-            // stdout().queue(crossterm::cursor::MoveDown(1));
-            // stdout().queue(crossterm::cursor::MoveToColumn(0));
         }
         stdout().flush().unwrap();
         if strings.len() > self.cache.max_height as usize {

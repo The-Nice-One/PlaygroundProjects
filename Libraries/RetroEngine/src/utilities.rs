@@ -2,17 +2,11 @@ use crate::Stylize;
 use unicode_segmentation::UnicodeSegmentation;
 
 pub fn max_length<T: ToString>(strings: &[T]) -> usize {
-    let mut max_length = 0;
-    for string in strings {
-        let current_length = String::from_utf8(strip_ansi_escapes::strip(string.to_string()))
-            .unwrap()
-            .graphemes(true)
-            .count();
-        if current_length > max_length {
-            max_length = current_length
-        }
-    }
-    max_length
+    strings
+        .iter()
+        .map(|string| length(string))
+        .max()
+        .unwrap_or(0)
 }
 
 pub fn length<T: ToString>(string: &T) -> usize {
@@ -42,9 +36,9 @@ pub fn take<T: ToString>(string: &T, start: usize, end: usize) -> String {
                 break;
             }
 
-            let remianing_characters: String = std::iter::once(char).chain(chars.clone()).collect();
-            let mut ramianing_graphemes = remianing_characters.graphemes(true);
-            if let Some(grapheme) = ramianing_graphemes.next() {
+            let remaining_characters: String = std::iter::once(char).chain(chars.clone()).collect();
+            let mut remaining_graphemes = remaining_characters.graphemes(true);
+            if let Some(grapheme) = remaining_graphemes.next() {
                 if grapheme_count >= start {
                     result.push_str(grapheme);
                 }
