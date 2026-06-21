@@ -1,8 +1,5 @@
 use directories::ProjectDirs;
-use discord_presence::{
-    Client,
-    models::{Activity, ActivityType},
-};
+use discord_presence::Client;
 use kira::{
     AudioManager, AudioManagerSettings, DefaultBackend, Tween,
     sound::static_sound::StaticSoundData, sound::static_sound::StaticSoundHandle,
@@ -212,15 +209,7 @@ fn main() {
                 .ok();
 
             update_song_list(&mut song_list, &player);
-            let activity = Activity::new()
-                .activity_type(ActivityType::Listening)
-                .state(
-                    player
-                        .current()
-                        .unwrap_or((&String::from("None"), &String::from("None")))
-                        .0
-                        .clone(),
-                );
+            let activity = build_activity(&player);
             update_discord_rpc(&discord_rpc, &mut discord_rpc_handles, activity);
         }
 
