@@ -14,6 +14,7 @@ After creating my very own TUI library called [Retro Engine](https://github.com/
 * Keyboard input for all interactions.
 * Discord rich presence support.
 * Custom theme support with 16 base terminal colors.
+* Streaming support to fetch recommendations for current song directory, and download audio via [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 
 # Preview
 

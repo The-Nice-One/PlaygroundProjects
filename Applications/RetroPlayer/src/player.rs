@@ -12,7 +12,16 @@ pub struct PlayerSession {
 
 impl PlayerSession {
     pub fn add_songs(&mut self, directory: &str) {
-        let song_directory = read_dir(directory).unwrap();
+        let song_directory = match read_dir(directory) {
+            Ok(value) => value,
+            Err(_) => {
+                logger!().add_entry(
+                    EntryId::Player,
+                    Entry::new(format!("Playlist directory not found: {}", directory)),
+                );
+                return;
+            }
+        };
 
         for song in song_directory {
             let file_type = song.as_ref().unwrap().file_type().unwrap();
@@ -52,7 +61,22 @@ impl PlayerSession {
             Entry::new_complete(format!("Loaded {} songs into the player", self.songs.len())),
         );
     }
+    pub fn load_playlist(&mut self, directory: &str) {
+        self.songs.clear();
+        self.current_index = 0;
+        if directory.is_empty() {
+            logger!().add_entry(
+                EntryId::Player,
+                Entry::new("No playlist directory configured"),
+            );
+            return;
+        }
+        self.add_songs(directory);
+    }
     pub fn previous(&mut self) {
+        if self.songs.is_empty() {
+            return;
+        }
         if self.current_index == 0 {
             self.current_index = self.songs.len() - 1;
         } else {
@@ -60,6 +84,9 @@ impl PlayerSession {
         }
     }
     pub fn next(&mut self) {
+        if self.songs.is_empty() {
+            return;
+        }
         if self.current_index >= self.songs.len() - 1 {
             self.current_index = 0;
         } else {
@@ -67,6 +94,9 @@ impl PlayerSession {
         }
     }
     pub fn peek_next(&self) -> Option<(&String, &String)> {
+        if self.songs.is_empty() {
+            return None;
+        }
         let index = (self.current_index + 1) % self.songs.len();
         self.songs.get_index(index)
     }
@@ -74,6 +104,9 @@ impl PlayerSession {
         self.songs.get_index(self.current_index)
     }
     pub fn peek_previous(&self) -> Option<(&String, &String)> {
+        if self.songs.is_empty() {
+            return None;
+        }
         let index = if self.current_index == 0 {
             self.songs.len() - 1
         } else {
@@ -82,6 +115,9 @@ impl PlayerSession {
         self.songs.get_index(index)
     }
     pub fn shuffle(&mut self) {
+        if self.songs.is_empty() {
+            return;
+        }
         let current_song_name = self.current().unwrap().0.clone();
         let mut keys: Vec<String> = self.songs.keys().cloned().collect();
         let mut rng = rng();

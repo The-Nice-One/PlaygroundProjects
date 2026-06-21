@@ -1,14 +1,14 @@
-use crate::{LogDisplay, PlayerSession, VolumeBar};
+use crate::components::{LogDisplay, PlaylistDropdown, VolumeBar};
+use crate::streaming::StreamingSession;
+use crate::PlayerSession;
 use kira::sound::static_sound::StaticSoundHandle;
 use retro_engine::components::*;
 use retro_engine::core::Terminal;
 use retro_engine::feeders::GridFeeder;
 
-mod control;
-mod log;
-
-pub use control::*;
-pub use log::*;
+pub mod control;
+pub mod log;
+pub mod streaming;
 
 pub type AppView = dyn for<'a> View<ViewState<'a>>;
 
@@ -18,6 +18,7 @@ pub struct ViewState<'a> {
     pub control_panel: &'a mut Text,
     pub side_bar: &'a VerticalLine,
     pub song_list: &'a mut Grid,
+    pub playlist_dropdown: &'a mut PlaylistDropdown,
     pub terminal: &'a Terminal,
     pub running: &'a mut bool,
     pub null_component: &'a mut Null,
@@ -31,6 +32,10 @@ pub struct ViewState<'a> {
 
     // Log view specific
     pub log: &'a LogDisplay<'a>,
+
+    // Streaming view specific
+    pub recommendations: &'a mut Grid,
+    pub streaming: &'a mut StreamingSession,
 }
 
 pub trait View<T> {

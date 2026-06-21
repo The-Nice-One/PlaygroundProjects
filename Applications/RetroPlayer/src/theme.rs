@@ -3,7 +3,7 @@ use retro_engine::Color;
 #[macro_export]
 macro_rules! theme {
     () => {
-        configuration!().theme
+        $crate::configuration!().theme
     };
 }
 

@@ -1,5 +1,4 @@
 use crate::theme;
-use crate::{configuration, configuration::*};
 use retro_engine::components::*;
 use retro_engine::{Event, KeyCode, Stylize};
 

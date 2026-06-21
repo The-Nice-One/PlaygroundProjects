@@ -1,7 +1,6 @@
 use crate::logger::EntryId;
 use crate::theme;
 use crate::{Entry, EntryStatus, Log};
-use crate::{configuration, configuration::*};
 use chrono::prelude::*;
 use chrono_humanize::HumanTime;
 use retro_engine::{Stylize, components::*};

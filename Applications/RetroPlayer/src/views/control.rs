@@ -1,7 +1,7 @@
 use super::{View, ViewState};
 use crate::{
     builders::update_control_view,
-    handlers::{handle_audio_controls, handle_header_controls},
+    handlers::{handle_audio_controls, handle_header_controls, handle_playlist_controls},
 };
 use retro_engine::components::*;
 use retro_engine::feeders::GridFeeder;
@@ -26,7 +26,7 @@ impl View<ViewState<'_>> for ControlView {
 
     fn components<'a>(&self, state: &'a mut ViewState) -> Vec<Box<&'a mut dyn Component>> {
         vec![
-            Box::new(state.null_component),
+            Box::new(state.playlist_dropdown),
             Box::new(state.header),
             Box::new(state.audio_controls),
             Box::new(state.volume_bar),
@@ -40,6 +40,15 @@ impl View<ViewState<'_>> for ControlView {
             state.player,
             state.sound,
             state.song_list,
+            state.control_panel,
+        );
+        handle_playlist_controls(
+            state.playlist_dropdown,
+            state.streaming,
+            state.recommendations,
+            state.player,
+            state.song_list,
+            state.sound,
             state.control_panel,
         );
 
@@ -75,6 +84,7 @@ impl View<ViewState<'_>> for ControlView {
             state.control_panel,
             state.audio_controls,
             state.volume_bar,
+            state.playlist_dropdown,
             state.terminal,
             state.sound,
         )

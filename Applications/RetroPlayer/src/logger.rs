@@ -22,7 +22,7 @@ pub fn log_format(
 #[macro_export]
 macro_rules! logger {
     () => {
-        LOGGER.lock().unwrap()
+        $crate::LOGGER.lock().unwrap()
     };
 }
 
@@ -31,6 +31,7 @@ pub enum EntryId {
     Configuration,
     DiscordPresence,
     Player,
+    Streaming,
 }
 
 pub static LOGGER: LazyLock<Arc<Mutex<Log<EntryId>>>> = LazyLock::new(|| {
