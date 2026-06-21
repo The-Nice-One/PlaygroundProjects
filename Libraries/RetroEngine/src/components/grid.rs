@@ -1,3 +1,5 @@
+use crate::utilities::length;
+
 use super::stateful_string::StatefulString;
 use super::trait_def::{Component, State};
 use super::{Button, Null, Radio, Toggle};
@@ -65,9 +67,14 @@ impl Component for GridItem {
 pub struct Grid {
     pub data: Vec<GridItem>,
     pub size: (u32, u32),
+    pub top_left_spacer: Option<StatefulString>,
     pub left_spacer: StatefulString,
+    pub bottom_left_spacer: Option<StatefulString>,
+    pub top_right_spacer: Option<StatefulString>,
     pub right_spacer: StatefulString,
+    pub bottom_right_spacer: Option<StatefulString>,
     pub horizontal_spacer: StatefulString,
+    pub padded_cells: bool,
     pub hovered: (u32, u32),
     pub state: State,
 }
@@ -81,9 +88,14 @@ impl Grid {
         Self {
             data,
             size,
+            top_left_spacer: None,
             left_spacer: "".into(),
+            bottom_left_spacer: None,
+            top_right_spacer: None,
             right_spacer: "".into(),
+            bottom_right_spacer: None,
             horizontal_spacer: "".into(),
+            padded_cells: false,
             hovered: (0, 0),
             state: State::Default,
         }
@@ -103,23 +115,70 @@ impl Grid {
             })
             .next()
     }
+    pub fn update_cell_stateful_string(&mut self, index: usize, new_string: StatefulString) {
+        if index < self.data.len() {
+            match self.data[index] {
+                GridItem::StatefulString(ref mut item) => *item = new_string,
+                GridItem::Button(ref mut item) => item.text = new_string,
+                _ => {}
+            }
+        }
+    }
 }
 
 impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut writer_x = 0;
+
+        let mut cells_max_width = vec![0; self.size.0 as usize];
+        if self.padded_cells {
+            for index in 0..self.size.0 * self.size.1 {
+                let cell_width = length(&self.data[index as usize].display());
+                let x = index as usize % self.size.0 as usize;
+                if cell_width > cells_max_width[x] {
+                    cells_max_width[x] = cell_width;
+                }
+            }
+        }
+
         for index in 0..self.size.0 * self.size.1 {
-            if writer_x == 0 {
+            if writer_x == 0 && index == 0 && self.top_left_spacer.is_some() {
+                write!(f, "{}", self.top_left_spacer.as_ref().unwrap())?;
+            } else if writer_x == 0
+                && index as usize == self.data.len() - 1
+                && self.bottom_left_spacer.is_some()
+            {
+                write!(f, "{}", self.bottom_left_spacer.as_ref().unwrap())?;
+            } else if writer_x == 0 {
                 write!(f, "{}", self.left_spacer)?;
             }
 
-            write!(f, "{}", self.data[index as usize].display())?;
+            let cell_data = &self.data[index as usize].display();
+            write!(f, "{}", cell_data)?;
+            if self.padded_cells {
+                let cell_width = length(&cell_data);
+                if cell_width < cells_max_width[writer_x as usize] {
+                    write!(
+                        f,
+                        "{}",
+                        " ".repeat(cells_max_width[writer_x as usize] - cell_width)
+                    )?;
+                }
+            }
+
             if writer_x < self.size.0 - 1 {
                 write!(f, "{}", self.horizontal_spacer)?;
             }
             writer_x += 1;
 
-            if writer_x == self.size.0 {
+            if writer_x == self.size.0 && index == 0 && self.top_right_spacer.is_some() {
+                write!(f, "{}", self.top_right_spacer.as_ref().unwrap())?;
+            } else if writer_x == self.size.0
+                && index as usize == self.data.len() - 1
+                && self.bottom_right_spacer.is_some()
+            {
+                write!(f, "{}", self.bottom_right_spacer.as_ref().unwrap())?;
+            } else if writer_x == self.size.0 {
                 write!(f, "{}", self.right_spacer)?;
             }
 
@@ -208,6 +267,18 @@ impl Component for Grid {
     }
     fn set_state(&mut self, state: State) {
         self.state = state;
+        if let Some(spacer) = self.top_left_spacer.as_mut() {
+            spacer.state = state;
+        }
+        if let Some(spacer) = self.bottom_left_spacer.as_mut() {
+            spacer.state = state;
+        }
+        if let Some(spacer) = self.top_right_spacer.as_mut() {
+            spacer.state = state;
+        }
+        if let Some(spacer) = self.bottom_right_spacer.as_mut() {
+            spacer.state = state;
+        }
         self.left_spacer.state = state;
         self.right_spacer.state = state;
         self.horizontal_spacer.state = state;
