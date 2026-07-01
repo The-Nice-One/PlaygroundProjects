@@ -26,6 +26,7 @@ pub const RUN_LOCAL: bool = false;
 const PMTILES_URL: &str = "https://content-spf.funguylabs.app/user-uploads/new-york.pmtiles";
 const MBTILES_PATH: &str = "./res/new-york.mbtiles";
 
+#[bevy_main]
 fn main() {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
@@ -47,7 +48,11 @@ fn run_app() {
             primary_window: Some(Window {
                 title: "NYC Non-Market Housing Simulation".into(),
                 resolution: (1400_u32, 900_u32).into(),
-                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+                mode: if cfg!(any(target_os = "android", target_os = "ios")) {
+                    WindowMode::Windowed
+                } else {
+                    WindowMode::BorderlessFullscreen(MonitorSelection::Primary)
+                },
                 ..default()
             }),
             ..default()

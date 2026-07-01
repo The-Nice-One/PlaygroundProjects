@@ -2,6 +2,7 @@
 name = "non_market_housing_simulation"
 version = "0.1.0"
 edition = "2024"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bevy = { version = "0.18" }
