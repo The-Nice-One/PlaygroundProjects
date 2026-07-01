@@ -1,0 +1,58 @@
+name: Build Standard Rust
+
+on:
+  workflow_call:
+    inputs:
+      projects:
+        required: true
+        type: string
+        description: "JSON array of Rust projects to build"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        project: ${{ fromJson(inputs.projects) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y g++ pkg-config libx11-dev libasound2-dev libudev-dev
+
+      - name: Build Project
+        working-directory: ${{ matrix.project.path }}
+        run: cargo build --release
+
+      - name: Prepare Artifacts (Linux / macOS)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          mkdir -p dist
+          cp target/release/${{ matrix.project.app_name }} dist/
+          [ -d "assets" ] && cp -r assets dist/assets || true
+          cd dist && tar -czf ../${{ matrix.project.name }}_${{ matrix.os }}.tar.gz *
+
+      - name: Prepare Artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item "target/release/${{ matrix.project.app_name }}.exe" -Destination "dist/"
+          if (Test-Path "assets") { Copy-Item "assets" -Destination "dist/" -Recurse }
+          Compress-Archive -Path dist/* -DestinationPath "${{ matrix.project.name }}_windows.zip"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.project.name }}-${{ matrix.os }}-rust-artifact
+          path: |
+            ${{ matrix.project.path }}/*.tar.gz
+            ${{ matrix.project.path }}/*.zip
+          if-no-files-found: warn

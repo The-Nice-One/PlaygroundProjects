@@ -1,2 +1,3 @@
 [github-workflow]
 build-type="bevy"
+app-name = "non_market_housing_simulation"

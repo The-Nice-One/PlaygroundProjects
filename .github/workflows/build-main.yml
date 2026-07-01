@@ -1,0 +1,135 @@
+name: Monorepo CI/CD
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ----------------------------------------------------------------------
+  # 1. DISCOVERY JOB
+  # Scans for modified Playground.toml files and categorizes them.
+  # ----------------------------------------------------------------------
+  prepare:
+    name: Discover Changed Projects
+    runs-on: ubuntu-latest
+    outputs:
+      rust_projects: ${{ steps.discover.outputs.rust_projects }}
+      bevy_projects: ${{ steps.discover.outputs.bevy_projects }}
+      has_rust: ${{ steps.discover.outputs.has_rust }}
+      has_bevy: ${{ steps.discover.outputs.has_bevy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Analyze Git Diff and TOML config
+        id: discover
+        run: |
+          python -c "
+          import os, json, subprocess
+
+          before = '${{ github.event.before }}'
+          if not before or before == '0000000000000000000000000000000000000000':
+              cmd = ['git', 'diff', '--name-only', 'HEAD~1', 'HEAD']
+          else:
+              cmd = ['git', 'diff', '--name-only', before, 'HEAD']
+
+          try:
+              changed_files = subprocess.check_output(cmd, text=True).splitlines()
+          except subprocess.CalledProcessError:
+              changed_files = None
+
+          rust_projects = []
+          bevy_projects = []
+
+          for root, dirs, files in os.walk('.'):
+              if 'Playground.toml' in files:
+                  toml_path = os.path.join(root, 'Playground.toml')
+                  norm_root = os.path.normpath(root)
+                  if norm_root.startswith('.' + os.sep): norm_root = norm_root[2:]
+                  elif norm_root == '.': norm_root = ''
+
+                  is_changed = (changed_files is None)
+                  if not is_changed:
+                      for f in changed_files:
+                          if norm_root == '' or f.startswith(norm_root + '/'):
+                              is_changed = True
+                              break
+
+                  if is_changed:
+                      folder_name = os.path.basename(os.path.abspath(root))
+                      build_type = 'rust'
+                      app_name = folder_name # Default to folder name
+
+                      # Parse TOML for build-type and optional app-name
+                      with open(toml_path, 'r') as f:
+                          for line in f:
+                              if 'build-type' in line:
+                                  build_type = line.split('=')[1].strip().strip('\"\' ')
+                              if 'app-name' in line:
+                                  app_name = line.split('=')[1].strip().strip('\"\' ')
+
+                      proj = {
+                          'path': norm_root if norm_root else '.',
+                          'name': folder_name,
+                          'app_name': app_name,
+                          'type': build_type
+                      }
+
+                      if build_type == 'rust':
+                          rust_projects.append(proj)
+                      elif build_type == 'bevy':
+                          bevy_projects.append(proj)
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'rust_projects={json.dumps(rust_projects)}\n')
+              f.write(f'bevy_projects={json.dumps(bevy_projects)}\n')
+              f.write(f'has_rust=true\n' if rust_projects else f'has_rust=false\n')
+              f.write(f'has_bevy=true\n' if bevy_projects else f'has_bevy=false\n')
+          "
+
+  # ----------------------------------------------------------------------
+  # 2. CALL RUST SUB-WORKFLOW
+  # ----------------------------------------------------------------------
+  build-rust:
+    needs: prepare
+    if: needs.prepare.outputs.has_rust == 'true'
+    uses: ./.github/workflows/build-rust.yml
+    with:
+      projects: ${{ needs.prepare.outputs.rust_projects }}
+
+  # ----------------------------------------------------------------------
+  # 3. CALL BEVY SUB-WORKFLOW
+  # ----------------------------------------------------------------------
+  build-bevy:
+    needs: prepare
+    if: needs.prepare.outputs.has_bevy == 'true'
+    uses: ./.github/workflows/build-bevy.yml
+    with:
+      projects: ${{ needs.prepare.outputs.bevy_projects }}
+
+  # ----------------------------------------------------------------------
+  # 4. AGGREGATE & RELEASE
+  # ----------------------------------------------------------------------
+  release:
+    needs: [prepare, build-rust, build-bevy]
+    if: always() && (needs.prepare.outputs.has_rust == 'true' || needs.prepare.outputs.has_bevy == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: run-${{ github.run_id }}
+          name: Auto-Build Release (Run ${{ github.run_id }})
+          body: "Automated release triggered by commit ${{ github.sha }}"
+          files: artifacts/**/*

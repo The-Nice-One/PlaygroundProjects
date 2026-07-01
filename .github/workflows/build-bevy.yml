@@ -1,0 +1,147 @@
+name: Build Bevy App
+
+on:
+  workflow_call:
+    inputs:
+      projects:
+        required: true
+        type: string
+        description: "JSON array of Bevy projects to build"
+
+jobs:
+  build-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        project: ${{ fromJson(inputs.projects) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install Dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev
+
+      - name: Build Project
+        working-directory: ${{ matrix.project.path }}
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            SDKROOT=$(xcrun -sdk macosx --show-sdk-path) cargo build --release --target=aarch64-apple-darwin
+            SDKROOT=$(xcrun -sdk macosx --show-sdk-path) cargo build --release --target=x86_64-apple-darwin
+            mkdir -p target/release
+            lipo -create -output target/release/${{ matrix.project.app_name }} target/aarch64-apple-darwin/release/${{ matrix.project.app_name }} target/x86_64-apple-darwin/release/${{ matrix.project.app_name }}
+          else
+            cargo build --release
+          fi
+
+      - name: Prepare Artifacts (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          mkdir -p dist
+          cp target/release/${{ matrix.project.app_name }} dist/
+          [ -d "assets" ] && cp -r assets dist/assets || true
+          [ -d "credits" ] && cp -r credits dist/credits || true
+          cd dist && tar -czf ../${{ matrix.project.name }}_ubuntu-latest.tar.gz *
+
+      - name: Prepare Artifacts (macOS DMG)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          APP_NAME="${{ matrix.project.app_name }}"
+          mkdir -p build/macos/src/$APP_NAME.app/Contents/MacOS/assets
+          [ -d "assets" ] && cp -r assets/ build/macos/src/$APP_NAME.app/Contents/MacOS/assets || true
+          [ -d "credits" ] && cp -r credits/ build/macos/src/$APP_NAME.app/Contents/MacOS/credits || true
+          cp target/release/$APP_NAME build/macos/src/$APP_NAME.app/Contents/MacOS/
+          ln -s /Applications build/macos/src/
+          hdiutil create -fs HFS+ -volname "${{ matrix.project.name }}" -srcfolder build/macos/src ${{ matrix.project.name }}.dmg
+
+      - name: Prepare Artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item "target/release/${{ matrix.project.app_name }}.exe" -Destination "dist/"
+          if (Test-Path "assets") { Copy-Item "assets" -Destination "dist/" -Recurse }
+          if (Test-Path "credits") { Copy-Item "credits" -Destination "dist/" -Recurse }
+          Compress-Archive -Path dist/* -DestinationPath "${{ matrix.project.name }}_windows.zip"
+
+      - name: Build MSI Installer (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          if (Test-Path "build/windows/installer/Installer.wixproj") {
+            dotnet build -c Release build/windows/installer/Installer.wixproj --output installer
+          }
+
+      - name: Upload Desktop Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.project.name }}-${{ matrix.os }}-bevy-artifact
+          path: |
+            ${{ matrix.project.path }}/*.tar.gz
+            ${{ matrix.project.path }}/*.zip
+            ${{ matrix.project.path }}/*.dmg
+            ${{ matrix.project.path }}/installer/**/*.msi
+          if-no-files-found: warn
+
+  build-mobile:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [android, ios]
+        project: ${{ fromJson(inputs.projects) }}
+    runs-on: ${{ matrix.target == 'ios' && 'macos-latest' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Android Target & Fix Platform 30
+        if: matrix.target == 'android'
+        run: |
+          rustup target add aarch64-linux-android
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-30"
+          cargo install --force cargo-apk
+
+      - name: Build Android
+        if: matrix.target == 'android'
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          if [ -d "mobile" ]; then cd mobile; fi
+          ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME cargo apk build --release
+
+      - name: Add iOS Targets
+        if: matrix.target == 'ios'
+        run: rustup target add aarch64-apple-ios x86_64-apple-ios
+
+      - name: Build iOS
+        if: matrix.target == 'ios'
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          if [ -d "mobile" ] && [ -f "mobile/Makefile" ]; then
+            cd mobile
+            make xcodebuild-iphone-release
+            mkdir -p Payload
+            mv build/Build/Products/Release-iphoneos/*.app Payload/ 2>/dev/null || true
+            zip -r ../${{ matrix.project.name }}_ios.ipa Payload
+          else
+            echo "No mobile setup found. Skipping iOS."
+          fi
+
+      - name: Upload Mobile Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.project.name }}-${{ matrix.target }}-bevy-artifact
+          path: |
+            ${{ matrix.project.path }}/**/target/release/apk/*.apk
+            ${{ matrix.project.path }}/*.ipa
+          if-no-files-found: warn

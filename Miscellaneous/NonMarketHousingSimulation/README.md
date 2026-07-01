@@ -1,6 +1,6 @@
 # Non-Market Housing Simulation
 
-A interactive graphical simulation of New York City non-market housing.
+An interactive graphical simulation of New York City non-market housing.
 
 # Motive
 
