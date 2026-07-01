@@ -310,7 +310,7 @@
 					"-lmobile",
 					"-lc++abi",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER /* Todo */ = me.nikl.bevygame;
+				PRODUCT_BUNDLE_IDENTIFIER /* Todo */ = the-nice-one.dev.non-market-housing-simulation;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -418,7 +418,7 @@
 					"-lmobile",
 					"-lc++abi",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER /* Todo */ = me.nikl.bevygame;
+				PRODUCT_BUNDLE_IDENTIFIER /* Todo */ = the-nice-one.dev.non-market-housing-simulation;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
