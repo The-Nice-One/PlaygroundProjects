@@ -18,7 +18,7 @@ During my Government and Economics class, I was tasked with creating a project t
 
 # Preview
 
-![previewNonMarketHousingSimulation](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/mainMiscellaneous/NonMarketHousingSimulation/NonMarketHousingSimulationPreview.png)
+![previewNonMarketHousingSimulation](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Miscellaneous/NonMarketHousingSimulation/NonMarketHousingSimulationPreview.png)
 
 # Usage
 
