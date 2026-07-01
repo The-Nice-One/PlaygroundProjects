@@ -1,0 +1,45 @@
+[package]
+name = "non_market_housing_simulation"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.18" }
+webbrowser = "1.2.1"
+flate2    = { version = "1.1",  features = ["rust_backend"], default-features = false }
+pmtiles   = { version = "0.23", default-features = false, features = ["__async"] }
+mvt-reader = "2.3"
+geo-types  = "0.7"
+bytes      = "1"
+async-lock = "3"
+earcutr = "0.4"
+tokio = { version = "1", features = ["sync"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+mbtiles    = { version = "0.17", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen          = "0.2"
+wasm-bindgen-futures  = "0.4"
+js-sys                = "0.3"
+web-sys               = { version = "0.3", features = [
+    "Window", "Response", "Headers", "RequestInit", "RequestMode"
+]}
+send_wrapper          = { version = "0.6", features = ["futures"] }
+console_error_panic_hook = "0.1"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+# Enable LTO for smaller binary and better cross-crate inlining.
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

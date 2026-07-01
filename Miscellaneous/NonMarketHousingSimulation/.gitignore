@@ -1,0 +1,5 @@
+target/
+tile_debug.log
+res/
+web/
+bin/
