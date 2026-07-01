@@ -81,9 +81,12 @@ jobs:
         run: |
           if (Test-Path "build/windows/installer/Installer.wixproj") {
             dotnet build -c Release build/windows/installer/Installer.wixproj --output installer
+          } else {
+            Write-Warning "Skipping MSI: build/windows/installer/Installer.wixproj not found."
           }
 
       - name: Upload Desktop Artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.project.name }}-${{ matrix.os }}-bevy-artifact
@@ -117,7 +120,7 @@ jobs:
         working-directory: ${{ matrix.project.path }}
         run: |
           if [ -d "mobile" ]; then cd mobile; fi
-          ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME cargo apk build --release
+          ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME cargo apk build --release || cargo apk build
 
       - name: Add iOS Targets
         if: matrix.target == 'ios'

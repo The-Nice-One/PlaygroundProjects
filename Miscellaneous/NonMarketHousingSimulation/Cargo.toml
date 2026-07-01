@@ -6,6 +6,9 @@ edition = "2024"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[package.metadata.android]
+apk_name = "non_market_housing_simulation"
+
 [dependencies]
 bevy = { version = "0.18" }
 webbrowser = "1.2.1"
