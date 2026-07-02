@@ -19,7 +19,7 @@ objc2-avf-audio = { version = "0.3.0", features = [
 ] }
 
 [package.metadata.android]
-package = "the-nice-one.dev.non-market-housing-simulation"  # ToDo
+package = "theniceone.dev.nonmarkethousingsimulation"  # ToDo
 apk_name = "NonMarketHousingSimulation"  # ToDo same as GAME_OSX_APP_NAME in release workflow
 assets = "../assets"
 strip = "strip"
