@@ -10,7 +10,7 @@ on:
 
 jobs:
   # ────────────────────────────────────────────────────────────────────────────
-  # Desktop builds: Linux, macOS (universal binary), Windows (+ optional MSI)
+  # Desktop builds: Linux, macOS (universal binary + DMG), Windows (+ MSI)
   # ────────────────────────────────────────────────────────────────────────────
   build-desktop:
     strategy:
@@ -29,17 +29,22 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev
 
+      # Use --profile dist so the binary lands in target/dist/ — which is where
+      # Package.wxs (WiX MSI) and the macOS DMG script expect to find it.
       - name: Build Project
         working-directory: ${{ matrix.project.path }}
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            SDKROOT=$(xcrun -sdk macosx --show-sdk-path) cargo build --release --target=aarch64-apple-darwin
-            SDKROOT=$(xcrun -sdk macosx --show-sdk-path) cargo build --release --target=x86_64-apple-darwin
-            mkdir -p target/release
-            lipo -create -output target/release/${{ matrix.project.app_name }} target/aarch64-apple-darwin/release/${{ matrix.project.app_name }} target/x86_64-apple-darwin/release/${{ matrix.project.app_name }}
+            SDKROOT=$(xcrun -sdk macosx --show-sdk-path) cargo build --profile dist --target=aarch64-apple-darwin
+            SDKROOT=$(xcrun -sdk macosx --show-sdk-path) cargo build --profile dist --target=x86_64-apple-darwin
+            mkdir -p target/dist
+            lipo -create \
+              -output target/dist/${{ matrix.project.app_name }} \
+              target/aarch64-apple-darwin/dist/${{ matrix.project.app_name }} \
+              target/x86_64-apple-darwin/dist/${{ matrix.project.app_name }}
           else
-            cargo build --release
+            cargo build --profile dist
           fi
 
       - name: Prepare Artifacts (Linux)
@@ -48,23 +53,59 @@ jobs:
         working-directory: ${{ matrix.project.path }}
         run: |
           mkdir -p dist
-          cp target/release/${{ matrix.project.app_name }} dist/
-          [ -d "assets" ] && cp -r assets dist/assets || true
+          cp target/dist/${{ matrix.project.app_name }} dist/
+          [ -d "assets" ]  && cp -r assets  dist/assets  || true
           [ -d "credits" ] && cp -r credits dist/credits || true
           cd dist && tar -czf ../${{ matrix.project.name }}_ubuntu-latest.tar.gz *
 
+      # Produces a proper .app bundle + DMG.
+      #
+      # The project is expected to ship a pre-configured app bundle skeleton at
+      # build/macos/src/Game.app/ containing at minimum:
+      #   Contents/Info.plist   – display name, bundle ID, version, icon ref
+      #   Contents/Resources/   – .icns icon file
+      #   Contents/PkgInfo      – "APPL????"
+      #
+      # (This structure is created by bevy_game_template and is already present
+      # in the repository.)  The binary and assets are then copied in and the
+      # bundle is renamed before packaging.
+      #
+      # If the skeleton is absent the step falls back to a minimal bundle with
+      # no Info.plist (runs fine, but macOS Gatekeeper will warn on open).
       - name: Prepare Artifacts (macOS DMG)
         if: matrix.os == 'macos-latest'
         shell: bash
         working-directory: ${{ matrix.project.path }}
         run: |
-          APP_NAME="${{ matrix.project.app_name }}"
-          mkdir -p build/macos/src/$APP_NAME.app/Contents/MacOS/assets
-          [ -d "assets" ] && cp -r assets/ build/macos/src/$APP_NAME.app/Contents/MacOS/assets || true
-          [ -d "credits" ] && cp -r credits/ build/macos/src/$APP_NAME.app/Contents/MacOS/credits || true
-          cp target/release/$APP_NAME build/macos/src/$APP_NAME.app/Contents/MacOS/
-          ln -s /Applications build/macos/src/
-          hdiutil create -fs HFS+ -volname "${{ matrix.project.name }}" -srcfolder build/macos/src ${{ matrix.project.name }}.dmg
+          APP_BIN="${{ matrix.project.app_name }}"
+          PROJ_NAME="${{ matrix.project.name }}"
+
+          # ── Locate or create the .app bundle skeleton ──────────────────────
+          TEMPLATE_APP=$(find build/macos/src -maxdepth 1 -name "*.app" -type d 2>/dev/null | head -1)
+
+          if [ -n "$TEMPLATE_APP" ]; then
+            # Use the repo-supplied skeleton (has Info.plist, icon, PkgInfo).
+            BUNDLE="build/macos/src/$PROJ_NAME.app"
+            mv "$TEMPLATE_APP" "$BUNDLE"
+          else
+            # Fallback: bare-bones bundle without Info.plist.
+            echo "Warning: no .app skeleton found in build/macos/src/; creating a minimal bundle."
+            BUNDLE="build/macos/src/$PROJ_NAME.app"
+            mkdir -p "$BUNDLE/Contents"
+          fi
+
+          # ── Copy binary and data into the bundle ───────────────────────────
+          mkdir -p "$BUNDLE/Contents/MacOS"
+          cp target/dist/$APP_BIN "$BUNDLE/Contents/MacOS/$APP_BIN"
+          [ -d "assets" ]  && cp -r assets/  "$BUNDLE/Contents/MacOS/assets"  || true
+          [ -d "credits" ] && cp -r credits/ "$BUNDLE/Contents/MacOS/credits" || true
+
+          # ── Package as DMG ─────────────────────────────────────────────────
+          ln -sf /Applications build/macos/src/
+          hdiutil create -fs HFS+ \
+            -volname "$PROJ_NAME" \
+            -srcfolder build/macos/src \
+            "$PROJ_NAME.dmg"
 
       - name: Prepare Artifacts (Windows)
         if: matrix.os == 'windows-latest'
@@ -72,11 +113,13 @@ jobs:
         working-directory: ${{ matrix.project.path }}
         run: |
           New-Item -ItemType Directory -Force -Path dist
-          Copy-Item "target/release/${{ matrix.project.app_name }}.exe" -Destination "dist/"
-          if (Test-Path "assets") { Copy-Item "assets" -Destination "dist/" -Recurse }
+          Copy-Item "target/dist/${{ matrix.project.app_name }}.exe" -Destination "dist/"
+          if (Test-Path "assets")  { Copy-Item "assets"  -Destination "dist/" -Recurse }
           if (Test-Path "credits") { Copy-Item "credits" -Destination "dist/" -Recurse }
           Compress-Archive -Path dist/* -DestinationPath "${{ matrix.project.name }}_windows.zip"
 
+      # The WiX project (Package.wxs) references target\dist\<app>.exe — which
+      # now matches because we built with --profile dist above.
       - name: Build MSI Installer (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
@@ -116,8 +159,7 @@ jobs:
 
       # ── Android ─────────────────────────────────────────────────────────────
 
-      # lld and llvm are required by the Android NDK linker invocation that
-      # cargo-apk generates; without them the link step fails.
+      # lld and llvm are required by the NDK linker invocation cargo-apk emits.
       - name: Install Dependencies (Android)
         if: matrix.target == 'android'
         run: sudo apt-get update && sudo apt-get install -y lld llvm
@@ -130,15 +172,14 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35"
           cargo install --force cargo-apk
 
+      # Run from the workspace root (not from inside mobile/) so that Cargo
+      # resolves the [workspace] section correctly and --package selects the
+      # right crate.  This is what prevents the android-game-activity vs.
+      # android-native-activity feature-unification conflict.
       - name: Build Android
         if: matrix.target == 'android'
         working-directory: ${{ matrix.project.path }}
-        run: |
-          # Run from the workspace root (not from inside mobile/) so that Cargo
-          # resolves the [workspace] correctly and --package selects the right
-          # crate.  This avoids the android-game-activity vs.
-          # android-native-activity feature-unification conflict.
-          ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME cargo apk build --package mobile
+        run: ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME cargo apk build --package mobile
 
       # ── iOS ─────────────────────────────────────────────────────────────────
 
@@ -146,6 +187,12 @@ jobs:
         if: matrix.target == 'ios'
         run: rustup target add aarch64-apple-ios x86_64-apple-ios aarch64-apple-ios-sim
 
+      # Xcode calls build_rust_deps.sh which runs `cargo rustc --crate-type
+      # staticlib --lib [--profile dist] --target aarch64-apple-ios`.
+      # The root lib must NOT have `crate-type = ["cdylib", ...]` — doing so
+      # causes Cargo to also produce a .dylib for iOS which the linker rejects
+      # (it finds macOS SDK frameworks instead of iOS SDK ones).
+      # That crate-type was removed from the root Cargo.toml.
       - name: Build iOS
         if: matrix.target == 'ios'
         working-directory: ${{ matrix.project.path }}

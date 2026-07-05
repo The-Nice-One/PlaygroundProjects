@@ -3,11 +3,26 @@ name = "non_market_housing_simulation"
 version = "0.1.0"
 edition = "2024"
 
+# The mobile crate is a separate entry point for Android and iOS.
+# It must be a workspace member so that Cargo resolves feature flags
+# across both crates together — without this, `cargo apk build --package mobile`
+# cannot find the root crate's workspace.
 [workspace]
 members = ["mobile"]
 
+# cdylib is intentionally absent.
+#
+# Previously "cdylib" was listed here to support compiling the lib directly as
+# a WASM module (via #[bevy_main]) and as a candidate dylib for Android.  Both
+# of those roles are now gone:
+#   • WASM  → trunk compiles `main.rs` as the binary entry point; no cdylib needed.
+#   • Mobile → the `mobile` crate is the cdylib/staticlib; this crate is rlib only.
+#
+# Keeping cdylib here caused `build_rust_deps.sh` (called by Xcode) to try to
+# produce a .dylib for aarch64-apple-ios, which fails because the linker picks
+# up macOS SDK frameworks instead of the iOS SDK ones.
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [profile.dev]
 opt-level = 1
@@ -22,6 +37,8 @@ codegen-units = 1
 strip = true
 panic = "abort"
 
+# Used by the release workflow for distribution builds (--profile dist).
+# Inherits release but with maximum throughput opt-level instead of size.
 [profile.dist]
 inherits = "release"
 opt-level = 3
@@ -34,6 +51,10 @@ dev = [
     "bevy/dynamic_linking",
 ]
 
+# Bevy with explicit features — android-game-activity and android-native-activity
+# are intentionally omitted here. They are exclusive to the `mobile` crate.
+# Enabling either here would cause a Cargo feature-unification conflict when the
+# `mobile` crate (which depends on android-native-activity) is built.
 [dependencies]
 bevy = { version = "0.18", default-features = false, features = [
     "default_app",
@@ -49,7 +70,7 @@ bevy = { version = "0.18", default-features = false, features = [
     "bevy_winit",
     "default_font",
     "multi_threaded",
-    "webgl2",
+    "webgl2",       # internally gated on wasm32; safe to include for all targets
     "x11",
     "wayland",
     "sysinfo_plugin",
@@ -81,6 +102,8 @@ web-sys                  = { version = "0.3", features = [
 send_wrapper             = { version = "0.6", features = ["futures"] }
 console_error_panic_hook = "0.1"
 
+# Required to make `rand`/`getrandom` work on wasm.
+# Backend is selected via `.cargo/config.toml` rustflags for wasm32-unknown-unknown.
 getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [build-dependencies]
