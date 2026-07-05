@@ -9,6 +9,9 @@ on:
         description: "JSON array of Bevy projects to build"
 
 jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # Desktop builds: Linux, macOS (universal binary), Windows (+ optional MSI)
+  # ────────────────────────────────────────────────────────────────────────────
   build-desktop:
     strategy:
       fail-fast: false
@@ -97,6 +100,9 @@ jobs:
             ${{ matrix.project.path }}/installer/**/*.msi
           if-no-files-found: warn
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # Mobile builds: Android (APK via cargo-apk) and iOS (via Makefile/xcodebuild)
+  # ────────────────────────────────────────────────────────────────────────────
   build-mobile:
     strategy:
       fail-fast: false
@@ -108,23 +114,37 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Add Android Target & Fix Platform 30
+      # ── Android ─────────────────────────────────────────────────────────────
+
+      # lld and llvm are required by the Android NDK linker invocation that
+      # cargo-apk generates; without them the link step fails.
+      - name: Install Dependencies (Android)
+        if: matrix.target == 'android'
+        run: sudo apt-get update && sudo apt-get install -y lld llvm
+
+      - name: Add Android Target & Install SDK Platform
         if: matrix.target == 'android'
         run: |
           rustup target add aarch64-linux-android
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-30"
+          # Platform 35 matches `target_sdk_version = 35` in mobile/Cargo.toml.
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35"
           cargo install --force cargo-apk
 
       - name: Build Android
         if: matrix.target == 'android'
         working-directory: ${{ matrix.project.path }}
         run: |
-          if [ -d "mobile" ]; then cd mobile; fi
-          ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME cargo apk build --release || cargo apk build
+          # Run from the workspace root (not from inside mobile/) so that Cargo
+          # resolves the [workspace] correctly and --package selects the right
+          # crate.  This avoids the android-game-activity vs.
+          # android-native-activity feature-unification conflict.
+          ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME cargo apk build --package mobile
+
+      # ── iOS ─────────────────────────────────────────────────────────────────
 
       - name: Add iOS Targets
         if: matrix.target == 'ios'
-        run: rustup target add aarch64-apple-ios x86_64-apple-ios
+        run: rustup target add aarch64-apple-ios x86_64-apple-ios aarch64-apple-ios-sim
 
       - name: Build iOS
         if: matrix.target == 'ios'
@@ -137,14 +157,16 @@ jobs:
             mv build/Build/Products/Release-iphoneos/*.app Payload/ 2>/dev/null || true
             zip -r ../${{ matrix.project.name }}_ios.ipa Payload
           else
-            echo "No mobile setup found. Skipping iOS."
+            echo "No mobile/Makefile found. Skipping iOS build."
           fi
+
+      # ── Upload ──────────────────────────────────────────────────────────────
 
       - name: Upload Mobile Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.project.name }}-${{ matrix.target }}-bevy-artifact
           path: |
-            ${{ matrix.project.path }}/**/target/release/apk/*.apk
+            ${{ matrix.project.path }}/**/target/*/apk/*.apk
             ${{ matrix.project.path }}/*.ipa
           if-no-files-found: warn
