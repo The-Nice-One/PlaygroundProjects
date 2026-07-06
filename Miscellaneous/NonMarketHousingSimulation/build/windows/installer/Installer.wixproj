@@ -3,6 +3,17 @@
     <PropertyGroup>
         <DebugType>none</DebugType>
         <OutputName>installer</OutputName>
+        <!--
+            WiX 4.0.0 has a known issue where publish events defined inside a
+            custom <UI> fragment (InstallDirUi.wxs) are not recognised by the
+            ICE17/20/31 validators even though they are correctly compiled into
+            the MSI.  Suppressing these three ICEs is the recommended workaround
+            until WiX is updated to a version where this is fixed.
+            ICE17 – button-event validation
+            ICE20 – required dialog / property validation
+            ICE31 – text-style validation
+        -->
+        <SuppressIces>ICE17;ICE20;ICE31</SuppressIces>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="WixToolset.UI.wixext" Version="4.0.0" />
