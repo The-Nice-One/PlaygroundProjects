@@ -31,8 +31,7 @@ use crate::plugin::{MapConfig, MapSimulationPlugin};
 /// remote PMTiles URL.  See the README for setup instructions.
 pub const RUN_LOCAL: bool = false;
 
-const PMTILES_URL: &str =
-    "https://content-spf.funguylabs.app/user-uploads/new-york.pmtiles";
+const PMTILES_URL: &str = "https://content-spf.funguylabs.app/user-uploads/new-york.pmtiles";
 const MBTILES_PATH: &str = "./res/new-york.mbtiles";
 
 /// Top-level plugin for the simulation.
@@ -48,7 +47,7 @@ impl Plugin for AppPlugin {
     fn build(&self, app: &mut App) {
         let config = MapConfig {
             zoom: 14,
-            origin_x: 4822, // centre of Manhattan at zoom 14
+            origin_x: 4822, // center of Manhattan at zoom 14
             origin_y: 6160,
             lru_capacity: 25,
             ..MapConfig::default()
@@ -63,7 +62,7 @@ impl Plugin for AppPlugin {
     }
 }
 
-/// Spawns the directional sun light that illuminates the 3-D building meshes.
+/// Spawns the directional sun light that illuminates the 3d building meshes.
 fn setup_scene(mut commands: Commands) {
     commands.spawn((
         DirectionalLight {

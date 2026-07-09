@@ -11,31 +11,23 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
-        .add_plugins(
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "NYC Non-Market Housing Simulation".into(),
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "NYC Non-Market Housing Simulation".into(),
 
-                    // Desktop: open at a fixed resolution in borderless fullscreen.
-                    // WASM: resolution is ignored; the canvas is sized by CSS /
-                    //       `fit_canvas_to_parent` instead.
-                    #[cfg(not(target_arch = "wasm32"))]
-                    resolution: (1400_u32, 900_u32).into(),
+                #[cfg(not(target_arch = "wasm32"))]
+                resolution: (1400_u32, 900_u32).into(),
 
-                    #[cfg(not(target_arch = "wasm32"))]
-                    mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+                #[cfg(not(target_arch = "wasm32"))]
+                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
 
-                    // Bind to the <canvas id="bevy"> element in index.html.
-                    canvas: Some("#bevy".to_owned()),
-                    fit_canvas_to_parent: true,
-                    // Let the browser handle F5 / Ctrl+R rather than Bevy.
-                    prevent_default_event_handling: false,
-
-                    ..default()
-                }),
+                canvas: Some("#bevy".to_owned()),
+                fit_canvas_to_parent: true,
+                prevent_default_event_handling: false,
                 ..default()
             }),
-        )
+            ..default()
+        }))
         .add_plugins(AppPlugin)
         .run();
 }
