@@ -56,18 +56,34 @@ jobs:
           [ -d "credits" ] && cp -r credits dist/credits || true
           cd dist && tar -czf ../${{ matrix.project.name }}_ubuntu-latest.tar.gz *
 
-      - name: Prepare Artifacts (macOS DMG)
+      # Produces both a standalone .app.zip and a drag-and-drop DMG installer.
+      - name: Prepare Artifacts (macOS)
         if: matrix.os == 'macos-latest'
         shell: bash
         working-directory: ${{ matrix.project.path }}
         run: |
-          APP_NAME="${{ matrix.project.app_name }}"
-          mkdir -p build/macos/src/$APP_NAME.app/Contents/MacOS/assets
-          [ -d "assets" ] && cp -r assets/ build/macos/src/$APP_NAME.app/Contents/MacOS/assets || true
-          [ -d "credits" ] && cp -r credits/ build/macos/src/$APP_NAME.app/Contents/MacOS/credits || true
-          cp target/dist/$APP_NAME build/macos/src/$APP_NAME.app/Contents/MacOS/
+          APP_BIN="${{ matrix.project.app_name }}"
+          PROJ_NAME="${{ matrix.project.name }}"
+
+          # Populate the bundle skeleton that already exists in the repo.
+          # mkdir -p is safe even if MacOS/ was never committed.
+          mkdir -p build/macos/src/Game.app/Contents/MacOS
+          cp target/dist/$APP_BIN build/macos/src/Game.app/Contents/MacOS/$APP_BIN
+          [ -d "assets" ]  && cp -r assets/  build/macos/src/Game.app/Contents/MacOS/assets  || true
+          [ -d "credits" ] && cp -r credits/ build/macos/src/Game.app/Contents/MacOS/credits || true
+
+          # Rename to the project display name.
+          mv build/macos/src/Game.app "build/macos/src/$PROJ_NAME.app"
+
+          # .app.zip — macOS-safe archive; picked up by the *.zip upload glob.
+          ditto -c -k --keepParent "build/macos/src/$PROJ_NAME.app" "$PROJ_NAME.app.zip"
+
+          # DMG — drag-and-drop installer for distribution.
           ln -s /Applications build/macos/src/
-          hdiutil create -fs HFS+ -volname "${{ matrix.project.name }}" -srcfolder build/macos/src ${{ matrix.project.name }}.dmg
+          hdiutil create -fs HFS+ \
+            -volname "$PROJ_NAME" \
+            -srcfolder build/macos/src \
+            "$PROJ_NAME.dmg"
 
       - name: Prepare Artifacts (Windows)
         if: matrix.os == 'windows-latest'
