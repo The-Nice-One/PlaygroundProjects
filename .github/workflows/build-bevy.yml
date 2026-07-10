@@ -145,8 +145,7 @@ jobs:
       - name: Add Android Target & Install SDK Platform
         if: matrix.target == 'android'
         run: |
-          rustup target add aarch64-linux-android
-          # Platform 35 matches `target_sdk_version = 35` in mobile/Cargo.toml.
+          rustup target add aarch64-linux-android armv7-linux-androideabi
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35"
           cargo install --force cargo-apk
 

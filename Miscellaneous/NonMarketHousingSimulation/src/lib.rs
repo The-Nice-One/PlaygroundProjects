@@ -62,7 +62,7 @@ impl Plugin for AppPlugin {
     }
 }
 
-/// Spawns the directional sun light that illuminates the 3d world.
+/// Spawns the directional sun light in the 3d world.
 fn setup_scene(mut commands: Commands) {
     commands.spawn((
         DirectionalLight {
