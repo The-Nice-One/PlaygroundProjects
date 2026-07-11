@@ -166,6 +166,7 @@ pub fn on_mesh_out(
 
 pub fn pick_building_2d(
     mouse: Res<ButtonInput<MouseButton>>,
+    touches: Res<Touches>,
     windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform), With<MapCamera2d>>,
     buildings_q: Query<(Entity, &BuildingAabb2D, &GlobalTransform, &LotData)>,
@@ -175,23 +176,55 @@ pub fn pick_building_2d(
     mut clr_ev: MessageWriter<SelectionClearedEvent>,
     mut panel_ev: MessageWriter<ShowBuildingPanel>,
     mut commands: Commands,
+    mut mouse_down_pos: Local<Option<Vec2>>,
+    mut was_ui_active: Local<bool>,
 ) {
     if *mode == SelectionMode::Mass {
         return;
     }
-    if !mouse.just_released(MouseButton::Left) {
-        return;
-    }
 
-    // Prevent map click if the mouse is interacting with UI.
-    if ui_interactions.iter().any(|i| *i != Interaction::None) {
-        return;
-    }
+    // Evaluate UI interaction logic before handling the pointer release
+    let is_ui_active = ui_interactions.iter().any(|i| *i != Interaction::None);
+    // Include last frame's UI activity to protect touches that were released and becomes None
+    let block_click = is_ui_active || *was_ui_active;
+    *was_ui_active = is_ui_active;
 
     let Ok(window) = windows.single() else { return };
-    let Some(cursor_screen) = window.cursor_position() else {
+
+    // Store mouse down positions to distinguish between clicks and pan drags.
+    if mouse.just_pressed(MouseButton::Left) {
+        *mouse_down_pos = window.cursor_position();
+    }
+
+    // Collect the release position from either mouse or touch.
+    let mut release_pos: Option<Vec2> = None;
+
+    if mouse.just_released(MouseButton::Left) {
+        if let (Some(start), Some(end)) = (*mouse_down_pos, window.cursor_position()) {
+            if start.distance_squared(end) < 100.0 {
+                release_pos = Some(end);
+            }
+        }
+        *mouse_down_pos = None;
+    } else {
+        for touch in touches.iter_just_released() {
+            // Only select a building if it was a tap and not a long pan drag
+            if touch.position().distance_squared(touch.start_position()) < 100.0 {
+                release_pos = Some(touch.position());
+            }
+            break;
+        }
+    }
+
+    let Some(cursor_screen) = release_pos else {
         return;
     };
+
+    // Prevent map click if the pointer is interacting with UI.
+    if block_click {
+        return;
+    }
+
     let Ok((cam, cam_tf)) = camera_q.single() else {
         return;
     };
