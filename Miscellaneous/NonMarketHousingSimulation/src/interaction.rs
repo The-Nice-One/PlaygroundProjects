@@ -10,8 +10,10 @@ use crate::components::{
     LotData, MapCamera2d, MapCamera3d, OwnershipTier, PlayerConverted, Selectable, Selected,
 };
 use crate::events::{
-    ConvertBuildingAction, SelectionClearedEvent, ShowBuildingPanel, ToggleSelectionModeEvent,
+    BuildOnLotAction, ConvertBuildingAction, SelectionClearedEvent, ShowBuildingPanel,
+    ToggleSelectionModeEvent,
 };
+use crate::plugin::RenderMode;
 use crate::sim_budget::SimulationBudget;
 
 // Selection state
@@ -48,12 +50,19 @@ pub fn on_mesh_click(
     parents: Query<&ChildOf>,
     mut state: ResMut<SelectionState>,
     mode: Res<SelectionMode>,
+    render_mode: Res<State<RenderMode>>,
     mut clr_ev: MessageWriter<SelectionClearedEvent>,
     mut panel_ev: MessageWriter<ShowBuildingPanel>,
     mut commands: Commands,
 ) {
-    // If in mass mode, use  drag system instead.
+    // If in mass mode, use drag system instead.
     if *mode == SelectionMode::Mass {
+        return;
+    }
+
+    // Disable 3D observer handling in 2D mode so it doesn't double-process 2D picks
+    // or incorrectly deselect buildings during a 2D map drag.
+    if *render_mode.get() == RenderMode::Mode2D {
         return;
     }
 
@@ -178,6 +187,9 @@ pub fn pick_building_2d(
     mut commands: Commands,
     mut mouse_down_pos: Local<Option<Vec2>>,
     mut was_ui_active: Local<bool>,
+    mut last_touch_time: Local<f32>,
+    mut last_pan_time: Local<f32>,
+    time: Res<Time>,
 ) {
     if *mode == SelectionMode::Mass {
         return;
@@ -185,11 +197,32 @@ pub fn pick_building_2d(
 
     // Evaluate UI interaction logic before handling the pointer release
     let is_ui_active = ui_interactions.iter().any(|i| *i != Interaction::None);
-    // Include last frame's UI activity to protect touches that were released and becomes None
+    // Include last frame's UI activity to protect touches that were released
     let block_click = is_ui_active || *was_ui_active;
     *was_ui_active = is_ui_active;
 
     let Ok(window) = windows.single() else { return };
+
+    // Store recent touch interactions to guard against simulated mouse clicks
+    if touches.iter().count() > 0 || touches.iter_just_released().count() > 0 {
+        *last_touch_time = time.elapsed_secs();
+    }
+
+    // Flag if touch is currently panning the map
+    let mut touch_is_panning = false;
+    for touch in touches.iter() {
+        if touch.position().distance_squared(touch.start_position()) >= 100.0 {
+            touch_is_panning = true;
+        }
+    }
+    for touch in touches.iter_just_released() {
+        if touch.position().distance_squared(touch.start_position()) >= 100.0 {
+            touch_is_panning = true;
+        }
+    }
+    if touch_is_panning {
+        *last_pan_time = time.elapsed_secs();
+    }
 
     // Store mouse down positions to distinguish between clicks and pan drags.
     if mouse.just_pressed(MouseButton::Left) {
@@ -199,21 +232,28 @@ pub fn pick_building_2d(
     // Collect the release position from either mouse or touch.
     let mut release_pos: Option<Vec2> = None;
 
+    for touch in touches.iter_just_released() {
+        // Only select a building if it was a tap and not a long pan drag
+        if touch.position().distance_squared(touch.start_position()) < 100.0 {
+            release_pos = Some(touch.position());
+        }
+        break;
+    }
+
     if mouse.just_released(MouseButton::Left) {
-        if let (Some(start), Some(end)) = (*mouse_down_pos, window.cursor_position()) {
-            if start.distance_squared(end) < 100.0 {
-                release_pos = Some(end);
+        // Only process mouse clicks if no touch events happened recently
+        // and the user has not touch-panned recently. This intercepts and drops OS-simulated touch-panning clicks.
+        let quiet_from_touch = time.elapsed_secs() - *last_touch_time > 0.5;
+        let quiet_from_pan = time.elapsed_secs() - *last_pan_time > 0.5;
+
+        if quiet_from_touch && quiet_from_pan {
+            if let (Some(start), Some(end)) = (*mouse_down_pos, window.cursor_position()) {
+                if start.distance_squared(end) < 100.0 {
+                    release_pos = Some(end);
+                }
             }
         }
         *mouse_down_pos = None;
-    } else {
-        for touch in touches.iter_just_released() {
-            // Only select a building if it was a tap and not a long pan drag
-            if touch.position().distance_squared(touch.start_position()) < 100.0 {
-                release_pos = Some(touch.position());
-            }
-            break;
-        }
     }
 
     let Some(cursor_screen) = release_pos else {
@@ -280,6 +320,7 @@ pub fn pick_building_2d(
 
 pub fn hover_building_2d_system(
     windows: Query<&Window>,
+    touches: Res<Touches>,
     camera_q: Query<(&Camera, &GlobalTransform), With<MapCamera2d>>,
     buildings_q: Query<(Entity, &BuildingAabb2D, &GlobalTransform), With<LotData>>,
     ui_interactions: Query<&Interaction, With<Node>>,
@@ -298,7 +339,14 @@ pub fn hover_building_2d_system(
     }
 
     let Ok(window) = windows.single() else { return };
-    let Some(cursor_screen) = window.cursor_position() else {
+    let mut cursor_screen = window.cursor_position();
+
+    // Prioritize active touches to bypass inaccurate desktop touch simulations and allow mobile panning highlights.
+    if let Some(touch) = touches.iter().next() {
+        cursor_screen = Some(touch.position());
+    }
+
+    let Some(cursor_screen) = cursor_screen else {
         if let Some(prev) = state.hovered_2d {
             if let Some(mut e) = commands.get_entity(prev).ok() {
                 e.remove::<Hovered>();
@@ -308,7 +356,7 @@ pub fn hover_building_2d_system(
         return;
     };
 
-    // Clear hover effect if moving mouse into UI.
+    // Clear hover effect if moving pointer into UI.
     if ui_interactions.iter().any(|i| *i != Interaction::None) {
         if let Some(prev) = state.hovered_2d {
             if let Some(mut e) = commands.get_entity(prev).ok() {
@@ -478,18 +526,47 @@ pub fn update_proxy_visuals_system(
 // Clear on empty click
 
 pub fn clear_selection_system(
-    mut events: MessageReader<SelectionClearedEvent>,
+    mut events: ParamSet<(
+        MessageReader<SelectionClearedEvent>,
+        MessageWriter<SelectionClearedEvent>,
+    )>,
+    mut convert_events: MessageReader<ConvertBuildingAction>,
+    mut build_events: MessageReader<BuildOnLotAction>,
     selected: Query<Entity, With<Selected>>,
     mut commands: Commands,
     mut state: ResMut<SelectionState>,
 ) {
-    for _ in events.read() {
+    let mut should_clear = false;
+
+    // Automatically deselect and close the details panel when convert or build operations are fired
+    let mut action_fired = false;
+    for _ in convert_events.read() {
+        action_fired = true;
+    }
+    for _ in build_events.read() {
+        action_fired = true;
+    }
+
+    if action_fired {
+        should_clear = true;
+    }
+
+    for _ in events.p0().read() {
+        should_clear = true;
+    }
+
+    if should_clear {
         for entity in &selected {
             if let Some(mut e) = commands.get_entity(entity).ok() {
                 e.remove::<Selected>();
             }
         }
         state.selected = None;
+
+        // Notify other systems like UI hide_building_panel_system that the panel should close
+        if action_fired {
+            events.p1().write(SelectionClearedEvent);
+        }
     }
 }
 
