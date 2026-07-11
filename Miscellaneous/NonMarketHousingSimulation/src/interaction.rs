@@ -476,6 +476,7 @@ pub fn toggle_selection_mode_system(
 pub fn drag_selection_system(
     mode: Res<SelectionMode>,
     mouse_input: Res<ButtonInput<MouseButton>>,
+    touches: Res<Touches>,
     windows: Query<&Window>,
     mut drag: ResMut<DragState>,
     camera_q: Query<(&Camera, &GlobalTransform), Or<(With<MapCamera3d>, With<MapCamera2d>)>>,
@@ -510,16 +511,34 @@ pub fn drag_selection_system(
     }
 
     let Ok(window) = windows.single() else { return };
-    let Some(cursor_pos) = window.cursor_position() else {
+
+    let mut input_just_pressed = mouse_input.just_pressed(MouseButton::Left);
+    let mut input_pressed = mouse_input.pressed(MouseButton::Left);
+    let mut input_just_released = mouse_input.just_released(MouseButton::Left);
+    let mut cursor_pos = window.cursor_position();
+
+    if let Some(touch) = touches.iter_just_pressed().next() {
+        input_just_pressed = true;
+        input_pressed = true;
+        cursor_pos = Some(touch.position());
+    } else if let Some(touch) = touches.iter().next() {
+        input_pressed = true;
+        cursor_pos = Some(touch.position());
+    } else if let Some(touch) = touches.iter_just_released().next() {
+        input_just_released = true;
+        cursor_pos = Some(touch.position());
+    }
+
+    let Some(cursor_pos) = cursor_pos else {
         return;
     };
 
-    if mouse_input.just_pressed(MouseButton::Left) {
+    if input_just_pressed {
         drag.start = Some(cursor_pos);
         drag.current = Some(cursor_pos);
-    } else if mouse_input.pressed(MouseButton::Left) {
+    } else if input_pressed {
         drag.current = Some(cursor_pos);
-    } else if mouse_input.just_released(MouseButton::Left) {
+    } else if input_just_released {
         // Trigger conversion on release
         if let (Some(start), Some(end)) = (drag.start, drag.current) {
             if let Ok((camera, cam_tf)) = camera_q.single() {
@@ -644,17 +663,19 @@ pub struct SelectionBoxUi;
 
 pub fn draw_selection_box_system(
     drag: Res<DragState>,
+    ui_scale: Res<bevy::ui::UiScale>,
     mut query: Query<&mut Node, With<SelectionBoxUi>>,
 ) {
     let Ok(mut node) = query.single_mut() else {
         return;
     };
     if let (Some(start), Some(current)) = (drag.start, drag.current) {
+        let scale = ui_scale.0;
         node.display = Display::Flex;
-        node.left = Val::Px(start.x.min(current.x));
-        node.top = Val::Px(start.y.min(current.y));
-        node.width = Val::Px((start.x - current.x).abs());
-        node.height = Val::Px((start.y - current.y).abs());
+        node.left = Val::Px(start.x.min(current.x) / scale);
+        node.top = Val::Px(start.y.min(current.y) / scale);
+        node.width = Val::Px((start.x - current.x).abs() / scale);
+        node.height = Val::Px((start.y - current.y).abs() / scale);
     } else {
         node.display = Display::None;
     }

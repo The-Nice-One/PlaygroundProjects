@@ -1,6 +1,7 @@
 //! Main MapSimulationPlugin registering systems, resources, and state.
 
 use bevy::prelude::*;
+use bevy::ui::UiScale;
 
 use crate::building_panel::{
     LodToggleFill, ToggleKnob, ToggleTrack, hide_building_panel_system, spawn_hud,
@@ -199,6 +200,7 @@ impl Plugin for MapSimulationPlugin {
                 setup_tile_source,
                 start_lot_db_load,
                 spawn_loading_screen,
+                setup_mobile_ui_scale,
             ),
         );
 
@@ -489,5 +491,34 @@ fn switch_to_3d(
     ));
     for coord in lru.roots.keys() {
         unload_ev.write(UnloadTileEvent { coord: *coord });
+    }
+}
+
+fn setup_mobile_ui_scale(mut ui_scale: ResMut<UiScale>) {
+    #[allow(unused_assignments, unused_mut)]
+    let mut is_mobile = false;
+
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        is_mobile = true;
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(navigator) = window.navigator().user_agent() {
+                let user_agent = navigator.to_lowercase();
+                if user_agent.contains("mobi")
+                    || user_agent.contains("android")
+                    || user_agent.contains("iphone")
+                {
+                    is_mobile = true;
+                }
+            }
+        }
+    }
+
+    if is_mobile {
+        ui_scale.0 = 0.72;
     }
 }

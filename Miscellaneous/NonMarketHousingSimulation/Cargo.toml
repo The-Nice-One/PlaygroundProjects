@@ -69,14 +69,14 @@ tokio       = { version = "1", features = ["sync"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 mbtiles = { version = "0.17", default-features = false }
 tokio   = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen             = "0.2"
 wasm-bindgen-futures     = "0.4"
 js-sys                   = "0.3"
 web-sys                  = { version = "0.3", features = [
-    "Window", "Response", "Headers", "RequestInit", "RequestMode"
+    "Window", "Response", "Headers", "RequestInit", "RequestMode", "Navigator"
 ] }
 send_wrapper             = { version = "0.6", features = ["futures"] }
 console_error_panic_hook = "0.1"

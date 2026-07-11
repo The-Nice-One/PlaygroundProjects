@@ -32,3 +32,11 @@ target_sdk_version = 35
 [package.metadata.android.application]
 icon = "@mipmap/icon"
 label = "Non-Market Housing Simulation" # ToDo
+theme = "@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.INTERNET"
+
+[package.metadata.android.application.activity]
+orientation = "landscape"
+fullscreen = true

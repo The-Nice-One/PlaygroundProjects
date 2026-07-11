@@ -30,6 +30,7 @@ pub fn camera_controller_system(
     mut mouse_wheel: MessageReader<MouseWheel>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     mut query: Query<&mut Transform, With<Camera3d>>,
     mut state: ResMut<CameraState>,
     mode: Res<SelectionMode>,
@@ -39,6 +40,40 @@ pub fn camera_controller_system(
         Ok(tf) => tf,
         Err(_) => return, // No camera found
     };
+
+    // Collect touch inputs
+    let mut touch_pan_delta = Vec2::ZERO;
+    let mut touch_zoom_delta = 0.0;
+    let mut touch_rotate_delta = 0.0;
+    let mut touch_pitch_delta = 0.0;
+
+    let active_touches: Vec<_> = touches.iter().collect();
+    if active_touches.len() == 1 {
+        let touch = active_touches[0];
+        touch_pan_delta = touch.delta();
+    } else if active_touches.len() == 2 {
+        let t1 = active_touches[0];
+        let t2 = active_touches[1];
+
+        let curr_dist = t1.position().distance(t2.position());
+        let prev_dist = t1.previous_position().distance(t2.previous_position());
+        touch_zoom_delta = curr_dist - prev_dist;
+
+        let curr_angle = (t2.position() - t1.position()).to_angle();
+        let prev_angle = (t2.previous_position() - t1.previous_position()).to_angle();
+
+        let mut angle_diff = curr_angle - prev_angle;
+        if angle_diff > std::f32::consts::PI {
+            angle_diff -= std::f32::consts::TAU;
+        } else if angle_diff < -std::f32::consts::PI {
+            angle_diff += std::f32::consts::TAU;
+        }
+        touch_rotate_delta = angle_diff;
+
+        let avg_curr_y = (t1.position().y + t2.position().y) * 0.5;
+        let avg_prev_y = (t1.previous_position().y + t2.previous_position().y) * 0.5;
+        touch_pitch_delta = avg_curr_y - avg_prev_y;
+    }
 
     // Keyboard Pan
     let mut move_dir = Vec3::ZERO;
@@ -171,6 +206,56 @@ pub fn camera_controller_system(
             transform.look_at(focus, Vec3::Y);
         }
     }
+
+    // Touch controls
+    if touch_pan_delta.length_squared() > 0.0 && *mode == SelectionMode::Single {
+        let offset = transform.translation - state.target;
+        let radius = offset.length();
+        let factor = 0.002 * radius;
+
+        let pan_delta =
+            -pan_side * touch_pan_delta.x * factor + pan_fwd * touch_pan_delta.y * factor;
+        transform.translation += pan_delta;
+        state.target += pan_delta;
+    }
+
+    if touch_zoom_delta != 0.0 {
+        let forward = transform.forward();
+        transform.translation += forward * touch_zoom_delta * 0.2;
+    }
+
+    if touch_rotate_delta != 0.0 || touch_pitch_delta != 0.0 {
+        let yaw = Quat::from_rotation_y(-touch_rotate_delta);
+        let pitch = Quat::from_rotation_x(-touch_pitch_delta * 0.005);
+        let focus = state.target;
+        let offset = transform.translation - focus;
+        let radius = offset.length();
+        let mut new_offset = yaw * pitch * offset;
+
+        // Prevent looking from underside
+        let min_y = (radius * 0.05).max(1.0);
+        let max_y = radius * 0.98;
+        if new_offset.y < min_y {
+            new_offset.y = min_y;
+            let xz_len = (radius * radius - min_y * min_y).sqrt();
+            let current_xz_len = Vec2::new(new_offset.x, new_offset.z).length();
+            if current_xz_len > 0.0 {
+                new_offset.x = (new_offset.x / current_xz_len) * xz_len;
+                new_offset.z = (new_offset.z / current_xz_len) * xz_len;
+            }
+        } else if new_offset.y > max_y {
+            new_offset.y = max_y;
+            let xz_len = (radius * radius - max_y * max_y).sqrt();
+            let current_xz_len = Vec2::new(new_offset.x, new_offset.z).length();
+            if current_xz_len > 0.0 {
+                new_offset.x = (new_offset.x / current_xz_len) * xz_len;
+                new_offset.z = (new_offset.z / current_xz_len) * xz_len;
+            }
+        }
+
+        transform.translation = focus + new_offset;
+        transform.look_at(focus, Vec3::Y);
+    }
 }
 
 pub fn camera_controller_2d_system(
@@ -179,6 +264,7 @@ pub fn camera_controller_2d_system(
     mut mouse_motion: MessageReader<MouseMotion>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     mut query: Query<&mut Transform, With<MapCamera2d>>,
     mut state: ResMut<CameraState>,
     mode: Res<SelectionMode>,
@@ -186,6 +272,35 @@ pub fn camera_controller_2d_system(
     let Ok(mut transform) = query.single_mut() else {
         return;
     };
+
+    // Collect touch inputs
+    let mut touch_pan_delta = Vec2::ZERO;
+    let mut touch_zoom_delta = 0.0;
+    let mut touch_rotate_delta = 0.0;
+
+    let active_touches: Vec<_> = touches.iter().collect();
+    if active_touches.len() == 1 {
+        let touch = active_touches[0];
+        touch_pan_delta = touch.delta();
+    } else if active_touches.len() == 2 {
+        let t1 = active_touches[0];
+        let t2 = active_touches[1];
+
+        let curr_dist = t1.position().distance(t2.position());
+        let prev_dist = t1.previous_position().distance(t2.previous_position());
+        touch_zoom_delta = curr_dist - prev_dist;
+
+        let curr_angle = (t2.position() - t1.position()).to_angle();
+        let prev_angle = (t2.previous_position() - t1.previous_position()).to_angle();
+
+        let mut angle_diff = curr_angle - prev_angle;
+        if angle_diff > std::f32::consts::PI {
+            angle_diff -= std::f32::consts::TAU;
+        } else if angle_diff < -std::f32::consts::PI {
+            angle_diff += std::f32::consts::TAU;
+        }
+        touch_rotate_delta = angle_diff;
+    }
 
     // Pan
     let mut move_dir = Vec2::ZERO;
@@ -319,6 +434,50 @@ pub fn camera_controller_2d_system(
     if zoom_delta != 0.0 {
         let new_scale =
             (transform.scale.x * (1.0 + zoom_delta * 5.0 * time.delta_secs())).clamp(0.01, 10.0);
+        transform.scale = Vec3::new(new_scale, new_scale, 1.0);
+    }
+
+    // Touch controls
+    if touch_pan_delta.length_squared() > 0.0 && *mode == SelectionMode::Single {
+        let cos = state.angle_2d.cos();
+        let sin = state.angle_2d.sin();
+
+        let drag_x = -touch_pan_delta.x * transform.scale.x;
+        let drag_y = touch_pan_delta.y * transform.scale.x;
+
+        let rx = drag_x * cos - drag_y * sin;
+        let ry = drag_x * sin + drag_y * cos;
+
+        transform.translation.x += rx;
+        transform.translation.y += ry;
+
+        state.target.x = transform.translation.x;
+        state.target.z = -transform.translation.y;
+    }
+
+    if touch_rotate_delta != 0.0 {
+        state.angle_2d += touch_rotate_delta;
+
+        let cam_x = transform.translation.x;
+        let cam_y = -transform.translation.y;
+        let focus_x = state.target.x;
+        let focus_y = state.target.z;
+
+        let offset_x = cam_x - focus_x;
+        let offset_y = cam_y - focus_y;
+        let cos = touch_rotate_delta.cos();
+        let sin = touch_rotate_delta.sin();
+        let rx = offset_x * cos - offset_y * sin;
+        let ry = offset_x * sin + offset_y * cos;
+
+        transform.translation.x = focus_x + rx;
+        transform.translation.y = -(focus_y + ry);
+        transform.rotation = Quat::from_rotation_z(state.angle_2d);
+    }
+
+    if touch_zoom_delta != 0.0 {
+        // Pinch zoom
+        let new_scale = (transform.scale.x * (1.0 - touch_zoom_delta * 0.005)).clamp(0.01, 10.0);
         transform.scale = Vec3::new(new_scale, new_scale, 1.0);
     }
 }
