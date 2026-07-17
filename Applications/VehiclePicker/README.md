@@ -1,6 +1,6 @@
-# Compose Library
+# Vehicle Picker
 
-[Code.org](https://code.org) App Lab library to build declarative User Interfaces.
+An app that recommends transport vehicles based on trip distance.
 
 # Motive
 
