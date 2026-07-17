@@ -14,7 +14,7 @@ This project was my submission for the AP Computer Science Create Performance Ta
 
 # Preview
 
-![previewVehiclePicker](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Applications/VehiclePicker/previewVehiclePicker.png)
+![previewVehiclePicker](https://raw.githubusercontent.com/The-Nice-One/PlaygroundProjects/refs/heads/main/Applications/VehiclePicker/VehiclePickerPreview.png)
 
 # Usage
 
