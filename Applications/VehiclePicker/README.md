@@ -4,7 +4,7 @@ An app that recommends transport vehicles based on trip distance.
 
 # Motive
 
-This project was my submission for the AP Computer Science Create Performance Task and met all its requirements. It's also the main showcase of ComposeLibrary, built during my Senior year of high school.
+This project was my submission for the AP Computer Science Create Performance Task and met all its requirements. It's also the main showcase of Compose Library, both built during my Senior year of high school.
 
 # Features
 
