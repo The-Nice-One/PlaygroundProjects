@@ -165,6 +165,7 @@ fn main() {
 
     let log = LogDisplay::from_logger(&LOGGER);
 
+    let mut search = SearchBox::new();
     let mut recommendations =
         new_recommendations_grid(configuration!().streaming.recommendations_per_fetch);
     let mut playlist_dropdown = PlaylistDropdown::new(playlist_paths, selected_playlist);
@@ -330,6 +331,7 @@ fn main() {
                 sound: &mut sound,
                 player: &mut player,
                 log: &log,
+                search: &mut search,
                 recommendations: &mut recommendations,
                 playlist_dropdown: &mut playlist_dropdown,
                 streaming: &mut streaming_session,

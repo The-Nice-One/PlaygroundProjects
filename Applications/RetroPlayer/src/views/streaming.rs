@@ -12,7 +12,7 @@ pub struct StreamingView {
 
 impl StreamingView {
     pub fn new() -> Self {
-        let mut controller = GridFeeder::new((2, 2));
+        let mut controller = GridFeeder::new((2, 3));
         controller.hovered = (1, 0);
 
         Self { controller }
@@ -28,6 +28,7 @@ impl View<ViewState<'_>> for StreamingView {
         vec![
             Box::new(state.playlist_dropdown),
             Box::new(state.header),
+            Box::new(state.search),
             Box::new(state.null_component),
             Box::new(state.recommendations),
         ]
@@ -51,6 +52,18 @@ impl View<ViewState<'_>> for StreamingView {
             state.sound,
             state.control_panel,
         );
+
+        if state.search.get_state().unwrap_or(State::Disabled) == State::Hovered {
+            state.control_panel.text.default("Search - Search");
+            state.control_panel.offset = 0;
+        }
+        if state.search.get_state().unwrap_or(State::Disabled) == State::Active {
+            state
+                .control_panel
+                .text
+                .default("Search Query - ANY keys, or Enter key   ");
+            state.control_panel.offset = 0;
+        }
     }
 
     fn render(&self, state: &mut ViewState) -> String {
@@ -59,6 +72,7 @@ impl View<ViewState<'_>> for StreamingView {
             state.song_list,
             state.header,
             state.control_panel,
+            state.search,
             state.recommendations,
             state.playlist_dropdown,
             state.terminal,

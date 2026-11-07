@@ -1,6 +1,7 @@
 use crate::PlayerSession;
 use crate::components::LogDisplay;
 use crate::components::PlaylistDropdown;
+use crate::components::SearchBox;
 use crate::components::VolumeBar;
 use crate::theme;
 use kira::sound::static_sound::StaticSoundHandle;
@@ -419,11 +420,29 @@ pub fn update_log_view(
     view
 }
 
+pub fn update_search_box(search: &mut SearchBox, terminal: &Terminal) {
+    if let Some(state) = search.get_state() {
+        if state != State::Active {
+            search.postfix = String::from(" ");
+            return;
+        }
+    }
+    let should_switch = if terminal.polls % 8 == 0 { true } else { false };
+    if should_switch {
+        if search.postfix.as_str() == "|" {
+            search.postfix = String::from(" ");
+        } else if search.postfix.as_str() == " " {
+            search.postfix = String::from("|");
+        }
+    }
+}
+
 pub fn update_streaming_view(
     side_bar: &VerticalLine,
     song_list: &Grid,
     header: &Grid,
     control_panel: &mut Text,
+    search: &mut SearchBox,
     recommendations: &mut Grid,
     playlist_dropdown: &PlaylistDropdown,
     terminal: &retro_engine::core::Terminal,
@@ -435,19 +454,8 @@ pub fn update_streaming_view(
 
     control_panel.min_width = Some(left_space);
     control_panel.max_width = Some(left_space);
-
-    if retro_engine::utilities::length(&control_panel.text.default)
-        > control_panel.max_width.unwrap() as usize
-    {
-        control_panel.offset += if terminal.polls % 8 == 0 { 1 } else { 0 };
-        if control_panel.offset as usize
-            > retro_engine::utilities::length(&control_panel.text.default)
-        {
-            control_panel.offset = 0
-        }
-    } else {
-        control_panel.offset = 0;
-    }
+    update_control_panel(control_panel, terminal);
+    update_search_box(search, terminal);
 
     let refresh_string = String::from("\u{27f3} Refresh recommendations");
     let refresh_string =
@@ -461,7 +469,7 @@ pub fn update_streaming_view(
     );
 
     let control_middle = format!("{}", control_panel.display().with(theme!().primary));
-    let control_bottom = format!("{}", recommendations.display());
+    let control_bottom = format!("{}\n{}", search.display(), recommendations.display());
 
     let control = format!("{}\n{}\n{}", control_top, control_middle, control_bottom);
 

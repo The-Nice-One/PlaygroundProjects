@@ -1,6 +1,6 @@
-use crate::components::{LogDisplay, PlaylistDropdown, VolumeBar};
-use crate::streaming::StreamingSession;
 use crate::PlayerSession;
+use crate::components::{LogDisplay, PlaylistDropdown, SearchBox, VolumeBar};
+use crate::streaming::StreamingSession;
 use kira::sound::static_sound::StaticSoundHandle;
 use retro_engine::components::*;
 use retro_engine::core::Terminal;
@@ -34,6 +34,7 @@ pub struct ViewState<'a> {
     pub log: &'a LogDisplay<'a>,
 
     // Streaming view specific
+    pub search: &'a mut SearchBox,
     pub recommendations: &'a mut Grid,
     pub streaming: &'a mut StreamingSession,
 }
