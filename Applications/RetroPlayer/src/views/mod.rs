@@ -22,6 +22,7 @@ pub struct ViewState<'a> {
     pub terminal: &'a Terminal,
     pub running: &'a mut bool,
     pub null_component: &'a mut Null,
+    pub null_component_2: &'a mut Null,
 
     // Control view specific
     pub player_bar: &'a mut ProgressBar,

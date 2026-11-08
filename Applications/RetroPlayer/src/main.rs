@@ -175,6 +175,7 @@ fn main() {
     }
 
     let mut null_component = retro_engine::components::Null::disabled();
+    let mut null_component_2 = retro_engine::components::Null::disabled();
     let mut view_registry = ViewRegistry::<AppView>::new();
 
     view_registry.register(Box::new(ControlView::new()));
@@ -293,19 +294,38 @@ fn main() {
                         entry.fail(format!("Streaming error: {}", err));
                     }
                 }
+                StreamingEvent::SearchResultsReady(query, tracks) => {
+                    update_recommendation_labels(&mut recommendations, &tracks);
+                    if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
+                        if tracks.is_empty() {
+                            entry.fail(format!("Found 0 results for '{}'", query));
+                        } else {
+                            entry.complete(format!(
+                                "Found {} results for '{}'",
+                                tracks.len(),
+                                query
+                            ));
+                        }
+                    }
+                }
+                StreamingEvent::SearchResultsFailed(query, err) => {
+                    if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
+                        entry.fail(format!("Search failed for '{}': {}", query, err));
+                    }
+                }
                 StreamingEvent::DownloadStarted(key) => {
                     logger!().add_entry(
                         EntryId::Streaming,
                         Entry::new(format!("Downloading: {}", key)),
                     );
                 }
-                StreamingEvent::DownloadComplete(key, path) => {
+                StreamingEvent::DownloadComplete { song_key, path, .. } => {
                     player
                         .songs
-                        .insert(key.clone(), path.to_string_lossy().to_string());
+                        .insert(song_key.clone(), path.to_string_lossy().to_string());
                     update_song_list(&mut song_list, &player);
                     if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
-                        entry.complete(format!("Download finished: {}", key));
+                        entry.complete(format!("Download finished: {}", song_key));
                     }
                 }
                 StreamingEvent::DownloadFailed(key, err) => {
@@ -325,6 +345,7 @@ fn main() {
                 terminal: &terminal,
                 running: &mut running,
                 null_component: &mut null_component,
+                null_component_2: &mut null_component_2,
                 player_bar: &mut player_bar,
                 audio_controls: &mut audio_controls,
                 volume_bar: &mut volume_bar,

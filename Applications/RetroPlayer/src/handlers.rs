@@ -4,7 +4,7 @@ use crate::PROJECT_DIRECTORY;
 use crate::builders::{
     AudioControlButton, HeaderButton, set_recommendations_loading, update_song_list,
 };
-use crate::components::PlaylistDropdown;
+use crate::components::{PlaylistDropdown, SearchBox};
 use crate::logger::{Entry, EntryId};
 use crate::streaming::{LibraryIndex, StreamingConfigSnapshot, StreamingSession};
 use crate::{PlayerSession, logger};
@@ -226,6 +226,33 @@ pub fn trigger_recommendation_refresh(streaming: &mut StreamingSession, player: 
     streaming.refresh_recommendations(library, config, mbid_cache_path);
 }
 
+pub fn handle_search_controls(
+    search: &mut SearchBox,
+    recommendations: &mut Grid,
+    streaming: &mut StreamingSession,
+    control_panel: &mut Text,
+) {
+    if let Some(query) = search.take_submitted_query() {
+        let config = configuration!();
+        let ytdlp_path = config.streaming.ytdlp_path.clone();
+        let max_results = config.streaming.recommendations_per_fetch;
+        drop(config);
+
+        set_recommendations_loading(recommendations);
+        streaming.recommendations.clear();
+        streaming.search(query.clone(), ytdlp_path, max_results);
+
+        logger!().add_entry(
+            EntryId::Streaming,
+            Entry::new(format!("Searching for '{}'...", query)),
+        );
+        control_panel
+            .text
+            .default(format!("Searching for '{}'...   ", query));
+        control_panel.offset = 0;
+    }
+}
+
 pub fn handle_streaming_controls(
     recommendations: &mut Grid,
     streaming: &mut StreamingSession,
@@ -262,7 +289,7 @@ pub fn handle_streaming_controls(
                     .text
                     .default("Refresh Recommendations - ENTER key   ");
             } else if let Some(track) = streaming.recommendations.get(i) {
-                if track.recording_mbid.is_some() {
+                if track.recording_mbid.is_some() || track.video_id.is_some() {
                     control_panel
                         .text
                         .default(format!("Download This Track - ENTER key   ",));

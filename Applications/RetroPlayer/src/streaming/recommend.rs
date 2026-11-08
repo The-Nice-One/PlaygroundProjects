@@ -8,24 +8,39 @@ use std::time::{Duration, Instant};
 use super::library::LibraryIndex;
 
 /// A candidate recommendation, always backed by a real MusicBrainz/ListenBrainz/
-/// Last.fm entity by the time it reaches this stage — nothing here is ever
-/// LLM-generated, so there's no hallucinated-title risk to guard against downstream.
-#[derive(Clone, Debug)]
+/// Last.fm entity or YouTube search/URL by the time it reaches this stage
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RecommendedTrack {
     pub artists: Vec<String>,
     pub title: String,
     /// Which library artist this suggestion was derived from, shown to the user as
-    /// context ("because you listen to Jamie Duffy").
+    /// context ("because you listen to Jamie Duffy"), or "Search" / "URL" for direct queries.
     pub source_artist: String,
     pub recording_mbid: Option<String>,
+    pub video_id: Option<String>,
 }
 
 impl RecommendedTrack {
-    /// "Artist[, Artist2] - Title", matching this app's existing filename/song-key
-    /// convention, so a downloaded file slots straight into `player.songs`.
+    /// Formats the song name to "Artist[, Artist2] - Title"
     pub fn song_name(&self) -> String {
-        format!("{} - {}", self.artists.join(", "), self.title)
+        if self.artists.is_empty() {
+            self.title.clone()
+        } else {
+            format!("{} - {}", self.artists.join(", "), self.title)
+        }
     }
+}
+
+/// Sanitizes a string for safe usage as a file name across platforms (Windows, macOS, Linux).
+pub fn sanitize_filename(name: &str) -> String {
+    name.chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            other => other,
+        })
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 /// Plain-data snapshot of the bits of `Configuration.streaming` that the background
@@ -54,7 +69,7 @@ impl MbRateLimiter {
         Self { last: None }
     }
 
-    fn wait(&mut self) {
+    pub fn wait(&mut self) {
         if let Some(last) = self.last {
             let elapsed = last.elapsed();
             let min_interval = Duration::from_millis(1100);
@@ -106,16 +121,14 @@ fn mb_score_as_u32(artist: &MbArtist) -> u32 {
 }
 
 /// Escapes the characters that are meaningful to MusicBrainz's Lucene-based query
-/// syntax inside a quoted phrase. Artist names are wrapped in `artist:"..."`, so the
-/// only character that actually needs escaping there is a literal double quote.
+/// syntax inside a quoted phrase.
 fn lucene_escape(value: &str) -> String {
     value.replace('"', "\\\"")
 }
 
 /// Resolves an artist name to a MusicBrainz artist MBID, using (and updating) the
 /// on-disk cache so repeated lookups for the same artist across refreshes don't hit
-/// the network. Returns `Ok(None)` (not an error) when MusicBrainz genuinely has no
-/// match — that's an expected outcome for some artists, not a failure.
+/// the network.
 pub fn resolve_artist_mbid(
     artist_name: &str,
     cache: &mut MbidCache,
@@ -149,6 +162,110 @@ pub fn resolve_artist_mbid(
     Ok(mbid)
 }
 
+#[derive(Debug, Deserialize)]
+struct MbRecordingResponse {
+    #[serde(default)]
+    recordings: Vec<MbRecording>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MbRecording {
+    title: String,
+    #[serde(default)]
+    score: Option<serde_json::Value>,
+    #[serde(default, rename = "artist-credit")]
+    artist_credit: Vec<MbArtistCredit>,
+    #[serde(default)]
+    releases: Vec<MbRelease>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MbArtistCredit {
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct MbRelease {
+    title: String,
+}
+
+fn mb_recording_score_as_u32(score: &Option<serde_json::Value>) -> u32 {
+    match score {
+        Some(serde_json::Value::Number(n)) => n.as_u64().unwrap_or(0) as u32,
+        Some(serde_json::Value::String(s)) => s.parse().unwrap_or(0),
+        _ => 0,
+    }
+}
+
+/// Queries MusicBrainz's recording endpoint to resolve canonical artist(s), track title,
+/// and album for a candidate artist and title pair. Tries exact query first, then flipped
+/// (in case the video was "Title - Artist").
+pub fn lookup_recording_metadata(
+    artist: &str,
+    title: &str,
+    limiter: &mut MbRateLimiter,
+) -> Option<(Vec<String>, String, Option<String>)> {
+    if artist.is_empty() || title.is_empty() {
+        return None;
+    }
+
+    let search_musicbrainz = |a: &str,
+                              t: &str,
+                              lim: &mut MbRateLimiter|
+     -> Option<(Vec<String>, String, Option<String>)> {
+        lim.wait();
+        let query = format!(
+            "recording:\"{}\" AND artist:\"{}\"",
+            lucene_escape(t),
+            lucene_escape(a)
+        );
+
+        let response: MbRecordingResponse = ureq::get("https://musicbrainz.org/ws/2/recording")
+            .set("User-Agent", USER_AGENT)
+            .timeout(std::time::Duration::from_secs(3))
+            .query("query", &query)
+            .query("fmt", "json")
+            .query("limit", "3")
+            .call()
+            .ok()?
+            .into_json()
+            .ok()?;
+
+        let best = response.recordings.into_iter().next()?;
+        let score = mb_recording_score_as_u32(&best.score);
+
+        if score >= 80 {
+            let artists: Vec<String> = best
+                .artist_credit
+                .into_iter()
+                .map(|ac| ac.name.trim().to_string())
+                .filter(|n| !n.is_empty())
+                .collect();
+            let album = best
+                .releases
+                .into_iter()
+                .next()
+                .map(|r| r.title.trim().to_string());
+            if !artists.is_empty() && !best.title.trim().is_empty() {
+                return Some((artists, best.title.trim().to_string(), album));
+            }
+        }
+        None
+    };
+
+    // 1. Try with (artist, title)
+    if let Some(res) = search_musicbrainz(artist, title, limiter) {
+        return Some(res);
+    }
+
+    // 2. Try flipped (title, artist) in case the video was "Title - Artist"
+    if let Some(res) = search_musicbrainz(title, artist, limiter) {
+        return Some(res);
+    }
+
+    None
+}
+
 // ListenBrainz: LB Radio (artist-seed similarity) + recording metadata lookup.
 
 #[derive(Debug, Deserialize, Clone)]
@@ -161,10 +278,7 @@ struct LbRadioEntry {
 type LbRadioArtistResponse = HashMap<String, Vec<LbRadioEntry>>;
 
 /// Queries ListenBrainz's "LB Radio" endpoint for recordings from artists similar to
-/// the given seed artist. The response's top-level dict is keyed by similar-artist
-/// MBID (including the seed itself); we flatten it into (similar_artist_name,
-/// recording_mbid) pairs and drop entries that don't carry a recording_mbid (which
-/// includes the seed-artist's own entry, which has no useful payload for our purposes).
+/// the given seed artist.
 pub fn fetch_lb_radio_for_artist(
     seed_mbid: &str,
     mode: &str,
@@ -223,14 +337,13 @@ struct RecordingMetadataEntry {
     artist_name: Option<String>,
     #[serde(default, rename = "recording_name")]
     recording_name: Option<String>,
-    #[serde(default, rename = "track_name")] // Fallback used in some LB responses
+    #[serde(default, rename = "track_name")]
     track_name: Option<String>,
 }
 
 type RecordingMetadataResponse = HashMap<String, RecordingMetadataEntry>;
 
-/// Resolves a batch of recording MBIDs (as returned by LB Radio) into actual
-/// artist-credit name + track title pairs, keyed by recording_mbid.
+/// Resolves a batch of recording MBIDs into actual artist-credit name + track title pairs.
 pub fn fetch_recording_titles(
     recording_mbids: &[String],
 ) -> anyhow::Result<HashMap<String, (String, String)>> {
@@ -269,11 +382,7 @@ pub fn fetch_recording_titles(
 
 const ARTIST_WEIGHT_SLOTS: [usize; 5] = [50, 30, 10, 5, 2];
 
-/// Generates a deduplicated list of recommended tracks for the given seed artists,
-/// trying ListenBrainz first and falling back to Last.fm per-seed-artist only when
-/// ListenBrainz has no similarity data for that artist. Every candidate that survives
-/// to the returned `Vec` is backed by a real MusicBrainz/ListenBrainz/Last.fm entity —
-/// nothing here is invented.
+/// Generates a deduplicated list of recommended tracks for the given seed artists.
 pub fn generate_recommendations(
     library: &LibraryIndex,
     seed_artists: &[String],
@@ -360,6 +469,7 @@ pub fn generate_recommendations(
                         title: title.clone(),
                         source_artist: seed_artist.clone(),
                         recording_mbid: Some(recording_mbid),
+                        video_id: None,
                     });
                 }
             }
@@ -381,4 +491,38 @@ pub fn generate_recommendations(
     // Final shuffle to mix the top artists' songs with the smaller artists' songs
     candidates.shuffle(&mut rng);
     Ok(candidates)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_song_name_with_and_without_artists() {
+        let track_with_artist = RecommendedTrack {
+            artists: vec!["Daft Punk".to_string()],
+            title: "Get Lucky".to_string(),
+            source_artist: "Search".to_string(),
+            recording_mbid: None,
+            video_id: Some("123".to_string()),
+        };
+        assert_eq!(track_with_artist.song_name(), "Daft Punk - Get Lucky");
+
+        let track_no_artist = RecommendedTrack {
+            artists: vec![],
+            title: "Solo Track".to_string(),
+            source_artist: "URL".to_string(),
+            recording_mbid: None,
+            video_id: Some("456".to_string()),
+        };
+        assert_eq!(track_no_artist.song_name(), "Solo Track");
+    }
+
+    #[test]
+    fn test_sanitize_filename() {
+        assert_eq!(
+            sanitize_filename("Artist / Name : Track * Title ? \"Quote\" <bracket> | test"),
+            "Artist _ Name _ Track _ Title _ _Quote_ _bracket_ _ test"
+        );
+    }
 }

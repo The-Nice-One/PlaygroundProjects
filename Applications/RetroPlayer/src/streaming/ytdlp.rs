@@ -13,11 +13,234 @@ pub struct YtdlpCandidate {
     /// (which the matching heuristic then penalizes, rather than panicking).
     #[serde(default)]
     pub duration: Option<f64>,
+    #[serde(default)]
+    pub uploader: Option<String>,
+    #[serde(default)]
+    pub channel: Option<String>,
+    #[serde(default)]
+    pub artist: Option<String>,
+    #[serde(default)]
+    pub track: Option<String>,
 }
 
-/// True if `yt-dlp` resolves on PATH. Checked once at startup so the rest of the app
-/// can simply disable the streaming feature for the session rather than failing
-/// confusingly partway through a download.
+/// Checks whether a query string represents a URL or a general text query.
+pub fn is_url(query: &str) -> bool {
+    let trimmed = query.trim();
+    trimmed.starts_with("http://")
+        || trimmed.starts_with("https://")
+        || trimmed.starts_with("www.")
+        || trimmed.starts_with("youtube.com/")
+        || trimmed.starts_with("youtu.be/")
+}
+
+/// Strips typical branding / suffix clutter from YouTube channel names.
+pub fn clean_uploader_name(uploader: &str) -> String {
+    let mut u = uploader.trim();
+    if let Some(stripped) = u.strip_suffix(" - Topic") {
+        u = stripped.trim();
+    }
+    if let Some(stripped) = u.strip_suffix(" VEVO") {
+        u = stripped.trim();
+    }
+    if let Some(stripped) = u.strip_suffix("VEVO") {
+        u = stripped.trim();
+    }
+    if let Some(stripped) = u.strip_suffix(" Official") {
+        u = stripped.trim();
+    }
+    u.to_string()
+}
+
+/// Checks whether a title or segment describes a cover, live solo, or instrumental performance.
+pub fn is_cover_or_performance(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    let keywords = [
+        "cover",
+        "piano cover",
+        "street piano",
+        "violin cover",
+        "guitar cover",
+        "drum cover",
+        "acoustic cover",
+        "remix",
+        "tribute",
+        "performed by",
+    ];
+    keywords.iter().any(|k| lower.contains(k))
+}
+
+/// Removes common noise and resolution tags from video titles.
+pub fn strip_clutter(text: &str) -> String {
+    let clutter_patterns = [
+        "(official video)",
+        "[official video]",
+        "(official music video)",
+        "[official music video]",
+        "(official audio)",
+        "[official audio]",
+        "(lyrics)",
+        "[lyrics]",
+        "(lyric video)",
+        "[lyric video]",
+        "(audio)",
+        "[audio]",
+        "(visualizer)",
+        "[visualizer]",
+        "(4k)",
+        "[4k]",
+        "(hd)",
+        "[hd]",
+        "(1080p)",
+        "[1080p]",
+        "(60fps)",
+        "[60fps]",
+        "(piano cover)",
+        "[piano cover]",
+        "(violin cover)",
+        "[violin cover]",
+        "(guitar cover)",
+        "[guitar cover]",
+        "(cover)",
+        "[cover]",
+    ];
+
+    let mut result = text.to_string();
+    for pattern in clutter_patterns {
+        let pattern_lower = pattern.to_lowercase();
+        while let Some(pos) = result.to_lowercase().find(&pattern_lower) {
+            result.replace_range(pos..pos + pattern.len(), "");
+        }
+    }
+    result.trim().to_string()
+}
+
+/// Extracts featured artist mentions (e.g. `ft. X` or `feat. X`) from title text.
+pub fn extract_features(text: &str) -> (Vec<String>, String) {
+    let lower = text.to_lowercase();
+    let markers = [" ft. ", " feat. ", " ft ", " feat ", " featuring "];
+
+    for marker in markers {
+        if let Some(idx) = lower.find(marker) {
+            let left = text[..idx].trim().to_string();
+            let right = &text[idx + marker.len()..];
+            let clean_right = right
+                .trim_end_matches(|c| c == ')' || c == ']' || c == '}')
+                .trim();
+
+            let features: Vec<String> = clean_right
+                .split(|c| c == ',' || c == '&')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+
+            return (features, left);
+        }
+    }
+
+    (vec![], text.to_string())
+}
+
+/// Parses artist(s) and track title from a raw YouTube title using multi-segment
+/// analysis, uploader deduplication, feature extraction, and cover crediting.
+pub fn parse_youtube_title_smart(
+    raw_title: &str,
+    uploader: Option<&str>,
+    channel: Option<&str>,
+) -> (Vec<String>, String) {
+    let raw_uploader = uploader.or(channel).unwrap_or("");
+    let clean_uploader = clean_uploader_name(raw_uploader);
+    let mut is_cover = is_cover_or_performance(raw_title);
+
+    // 1. Split into segments using pipe (|), slash (/), bullet (•), or broken bar (¦)
+    let segments: Vec<&str> = raw_title
+        .split(|c| c == '|' || c == '/' || c == '•' || c == '¦')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let mut filtered_segments = Vec::new();
+    for &seg in &segments {
+        let seg_lower = seg.to_lowercase();
+        let up_lower = clean_uploader.to_lowercase();
+
+        // Drop segment if it matches the uploader branding (e.g. "YUKI PIANO")
+        if !up_lower.is_empty()
+            && (seg_lower == up_lower || seg_lower == format!("{} piano", up_lower))
+        {
+            continue;
+        }
+
+        // Drop clickbait/genre prefixes without a song delimiter (e.g. "Soulful Street Piano Cover")
+        if is_cover_or_performance(seg) && !seg.contains(" - ") {
+            is_cover = true;
+            continue;
+        }
+
+        filtered_segments.push(seg);
+    }
+
+    if filtered_segments.is_empty() {
+        filtered_segments = segments.clone();
+    }
+
+    // 2. Locate the core musical segment containing " - "
+    let core_segment = filtered_segments
+        .iter()
+        .find(|&&s| s.contains(" - "))
+        .copied()
+        .unwrap_or(filtered_segments.first().copied().unwrap_or(raw_title));
+
+    // 3. Extract primary artist and title part
+    let mut artists: Vec<String> = Vec::new();
+    let raw_title_part: String;
+
+    if let Some((left, right)) = core_segment.split_once(" - ") {
+        let left_trimmed = left.trim();
+        let right_trimmed = right.trim();
+
+        if left_trimmed.eq_ignore_ascii_case("full album")
+            || left_trimmed.eq_ignore_ascii_case("soundtrack")
+        {
+            artists.push(right_trimmed.to_string());
+            raw_title_part = left_trimmed.to_string();
+        } else {
+            for a in left_trimmed.split(|c| c == ',' || c == '&') {
+                let trimmed = a.trim();
+                if !trimmed.is_empty() {
+                    artists.push(trimmed.to_string());
+                }
+            }
+            raw_title_part = right_trimmed.to_string();
+        }
+    } else {
+        raw_title_part = core_segment.to_string();
+        if !clean_uploader.is_empty() {
+            artists.push(clean_uploader.clone());
+        } else {
+            artists.push("Unknown Artist".to_string());
+        }
+    }
+
+    // 4. Extract featured artists from title part (e.g. "Get Lucky ft. Pharrell Williams")
+    let (features, title_without_features) = extract_features(&raw_title_part);
+    for feat in features {
+        if !artists.contains(&feat) {
+            artists.push(feat);
+        }
+    }
+
+    // 5. Strip clutter tags
+    let final_title = strip_clutter(&title_without_features);
+
+    // 6. If it is a cover/performance and uploader is distinct, credit performer as co-artist
+    if is_cover && !clean_uploader.is_empty() && !artists.contains(&clean_uploader) {
+        artists.push(clean_uploader);
+    }
+
+    (artists, final_title)
+}
+
+/// True if `yt-dlp` resolves on PATH.
 pub fn is_available(ytdlp_path: &str) -> bool {
     Command::new(ytdlp_path)
         .arg("--version")
@@ -26,9 +249,7 @@ pub fn is_available(ytdlp_path: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Runs `yt-dlp --dump-json "ytsearch{count}:{query}"` and parses one JSON object per
-/// line (yt-dlp's `--dump-json` output format: one self-contained JSON document per
-/// matched video, newline-separated).
+/// Runs `yt-dlp --dump-json "ytsearch{count}:{query}"`.
 pub fn search(ytdlp_path: &str, query: &str, count: u32) -> anyhow::Result<Vec<YtdlpCandidate>> {
     let search_term = format!("ytsearch{}:{}", count, query);
     let output = Command::new(ytdlp_path)
@@ -51,17 +272,98 @@ pub fn search(ytdlp_path: &str, query: &str, count: u32) -> anyhow::Result<Vec<Y
         if let Ok(candidate) = serde_json::from_str::<YtdlpCandidate>(line) {
             candidates.push(candidate);
         }
-        // A line that doesn't parse is skipped rather than failing the whole search —
-        // yt-dlp occasionally interleaves non-JSON warning text even with --no-warnings.
     }
     Ok(candidates)
 }
 
-/// Picks the best-matching candidate from a search result list for a given
-/// artist/title pair. Title token overlap is the primary signal (artist name is
-/// often, but not always, present in the video title); duration outside a plausible
-/// instrumental-track runtime (30s-15min) is penalized rather than excluded outright,
-/// in case nothing better is available.
+/// Searches yt-dlp using either a direct URL or a general query, utilizing `--flat-playlist`
+/// for near-instant metadata retrieval.
+pub fn search_query_or_url(
+    ytdlp_path: &str,
+    query: &str,
+    count: u32,
+) -> anyhow::Result<Vec<YtdlpCandidate>> {
+    let trimmed = query.trim();
+    let mut cmd = Command::new(ytdlp_path);
+    cmd.arg("--dump-json")
+        .arg("--no-warnings")
+        .arg("--flat-playlist");
+
+    if is_url(trimmed) {
+        let full_url = if trimmed.starts_with("www.") {
+            format!("https://{}", trimmed)
+        } else {
+            trimmed.to_string()
+        };
+
+        if full_url.contains("watch?v=") || full_url.contains("youtu.be/") {
+            cmd.arg("--no-playlist").arg(&full_url);
+        } else {
+            cmd.arg("--playlist-end")
+                .arg(count.to_string())
+                .arg(&full_url);
+        }
+    } else {
+        let search_term = format!("ytsearch{}:{}", count, trimmed);
+        cmd.arg(&search_term);
+    }
+
+    let output = cmd.output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("yt-dlp search failed: {}", stderr);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut candidates = Vec::new();
+    for line in stdout.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        if let Ok(candidate) = serde_json::from_str::<YtdlpCandidate>(line) {
+            candidates.push(candidate);
+        }
+    }
+    Ok(candidates)
+}
+
+/// Converts a `YtdlpCandidate` into a `RecommendedTrack`, populating artist and title
+/// via the smart multi-segment heuristic parser.
+pub fn parse_candidate(candidate: YtdlpCandidate, query: &str) -> RecommendedTrack {
+    let (artists, title) = if let (Some(a), Some(t)) = (candidate.artist, candidate.track) {
+        if !a.trim().is_empty() && !t.trim().is_empty() {
+            (vec![a.trim().to_string()], t.trim().to_string())
+        } else {
+            parse_youtube_title_smart(
+                &candidate.title,
+                candidate.uploader.as_deref(),
+                candidate.channel.as_deref(),
+            )
+        }
+    } else {
+        parse_youtube_title_smart(
+            &candidate.title,
+            candidate.uploader.as_deref(),
+            candidate.channel.as_deref(),
+        )
+    };
+
+    let source = if is_url(query) {
+        "URL".to_string()
+    } else {
+        "Search".to_string()
+    };
+
+    RecommendedTrack {
+        artists,
+        title,
+        source_artist: source,
+        recording_mbid: None,
+        video_id: Some(candidate.id),
+    }
+}
+
+/// Picks the best-matching candidate from a search result list for a given artist/title pair.
 pub fn pick_best<'a>(
     candidates: &'a [YtdlpCandidate],
     artist: &str,
@@ -111,13 +413,17 @@ pub fn pick_best<'a>(
     best.map(|(candidate, _)| candidate)
 }
 
-/// Downloads and extracts audio for a single video ID to `output_path` (which should
-/// already include the desired filename, e.g. ".../Artist - Title.mp3" — yt-dlp's
-/// output template uses `%(ext)s` for the extension, which `--audio-format mp3`
-/// pins to "mp3").
-pub fn download(ytdlp_path: &str, video_id: &str, output_path: &Path) -> anyhow::Result<()> {
+/// Downloads and extracts audio for a single video ID or direct URL to `output_path`.
+pub fn download(ytdlp_path: &str, video_id_or_url: &str, output_path: &Path) -> anyhow::Result<()> {
+    if let Some(parent) = output_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
     let output_template = output_path.with_extension("%(ext)s");
-    let url = format!("https://www.youtube.com/watch?v={}", video_id);
+    let url = if video_id_or_url.starts_with("http://") || video_id_or_url.starts_with("https://") {
+        video_id_or_url.to_string()
+    } else {
+        format!("https://www.youtube.com/watch?v={}", video_id_or_url)
+    };
 
     let output = Command::new(ytdlp_path)
         .arg("-f")
@@ -144,10 +450,14 @@ pub fn download(ytdlp_path: &str, video_id: &str, output_path: &Path) -> anyhow:
     Ok(())
 }
 
-/// Writes artist/title tags onto a downloaded file so it's self-describing even if
-/// inspected outside this app. Verified against lofty 0.21's `Probe`/`TaggedFileExt`/
-/// `Accessor`/`TagExt` API.
-pub fn tag_file(path: &Path, artists: &[String], title: &str, url: &str) -> anyhow::Result<()> {
+/// Writes artist/title/album tags onto a downloaded file.
+pub fn tag_file(
+    path: &Path,
+    artists: &[String],
+    title: &str,
+    album: Option<&str>,
+    url: &str,
+) -> anyhow::Result<()> {
     use lofty::config::WriteOptions;
     use lofty::file::TaggedFileExt;
     use lofty::picture::{MimeType, Picture, PictureType};
@@ -164,9 +474,18 @@ pub fn tag_file(path: &Path, artists: &[String], title: &str, url: &str) -> anyh
     let tag = tagged_file
         .primary_tag_mut()
         .expect("tag was just inserted if missing");
-    tag.set_artist(artists.join(", "));
+    let artist_str = if artists.is_empty() {
+        "Unknown Artist".to_string()
+    } else {
+        artists.join(", ")
+    };
+    tag.set_artist(artist_str);
     tag.set_title(title.to_string());
-    tag.set_album(title.to_string());
+    if let Some(alb) = album {
+        tag.set_album(alb.to_string());
+    } else {
+        tag.set_album(title.to_string());
+    }
 
     tag.insert(TagItem::new(
         ItemKey::AudioSourceUrl,
@@ -193,8 +512,140 @@ pub fn tag_file(path: &Path, artists: &[String], title: &str, url: &str) -> anyh
     Ok(())
 }
 
-/// Builds the search query for a `RecommendedTrack`, matching this app's existing
-/// "Artist - Title" filename convention.
+/// Builds the search query for a `RecommendedTrack`.
 pub fn search_query(track: &RecommendedTrack) -> String {
-    format!("{} - {}", track.artists.join(", "), track.title)
+    if track.artists.is_empty() {
+        track.title.clone()
+    } else {
+        format!("{} - {}", track.artists.join(", "), track.title)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_url() {
+        assert!(is_url("https://www.youtube.com/watch?v=123"));
+        assert!(is_url("http://example.com/audio.mp3"));
+        assert!(is_url("www.youtube.com/watch?v=123"));
+        assert!(is_url("youtu.be/12345"));
+        assert!(!is_url("daft punk get lucky"));
+        assert!(!is_url("coldplay - yellow"));
+    }
+
+    #[test]
+    fn test_parse_candidate_piped_cover() {
+        let candidate = YtdlpCandidate {
+            id: "vid3e9".to_string(),
+            title: "Soulful Street Piano Cover | Jamie Duffy - Solas | YUKI PIANO".to_string(),
+            duration: Some(210.0),
+            uploader: Some("YUKI PIANO ".to_string()),
+            channel: Some("YUKI PIANO ".to_string()),
+            artist: None,
+            track: None,
+        };
+        let track = parse_candidate(candidate, "Solas Yuki Piano");
+        assert_eq!(
+            track.artists,
+            vec!["Jamie Duffy".to_string(), "YUKI PIANO".to_string()]
+        );
+        assert_eq!(track.title, "Solas");
+        assert_eq!(track.source_artist, "Search");
+        assert_eq!(track.video_id, Some("vid3e9".to_string()));
+    }
+
+    #[test]
+    fn test_parse_candidate_performer_cover() {
+        let candidate = YtdlpCandidate {
+            id: "vid_time".to_string(),
+            title: "Hans Zimmer - Time | Street Piano | YUKI PIANO".to_string(),
+            duration: Some(270.0),
+            uploader: Some("YUKI PIANO".to_string()),
+            channel: Some("YUKI PIANO".to_string()),
+            artist: None,
+            track: None,
+        };
+        let track = parse_candidate(candidate, "Hans Zimmer Time");
+        assert_eq!(
+            track.artists,
+            vec!["Hans Zimmer".to_string(), "YUKI PIANO".to_string()]
+        );
+        assert_eq!(track.title, "Time");
+    }
+
+    #[test]
+    fn test_parse_candidate_featured_artists() {
+        let candidate = YtdlpCandidate {
+            id: "vid_lucky".to_string(),
+            title: "Daft Punk - Get Lucky (Official Audio) ft. Pharrell Williams, Nile Rodgers"
+                .to_string(),
+            duration: Some(248.0),
+            uploader: Some("Daft Punk".to_string()),
+            channel: Some("Daft Punk".to_string()),
+            artist: None,
+            track: None,
+        };
+        let track = parse_candidate(candidate, "get lucky");
+        assert_eq!(
+            track.artists,
+            vec![
+                "Daft Punk".to_string(),
+                "Pharrell Williams".to_string(),
+                "Nile Rodgers".to_string()
+            ]
+        );
+        assert_eq!(track.title, "Get Lucky");
+    }
+
+    #[test]
+    fn test_parse_candidate_clutter_stripping() {
+        let candidate = YtdlpCandidate {
+            id: "vid_queen".to_string(),
+            title: "Queen - Bohemian Rhapsody (Lyrics)".to_string(),
+            duration: Some(355.0),
+            uploader: Some("7clouds Rock".to_string()),
+            channel: Some("7clouds Rock".to_string()),
+            artist: None,
+            track: None,
+        };
+        let track = parse_candidate(candidate, "bohemian rhapsody");
+        assert_eq!(track.artists, vec!["Queen".to_string()]);
+        assert_eq!(track.title, "Bohemian Rhapsody");
+    }
+
+    #[test]
+    fn test_parse_candidate_official_video_clutter() {
+        let candidate = YtdlpCandidate {
+            id: "vid_yellow".to_string(),
+            title: "Coldplay - Yellow (Official Video)".to_string(),
+            duration: Some(269.0),
+            uploader: Some("Coldplay".to_string()),
+            channel: Some("Coldplay".to_string()),
+            artist: None,
+            track: None,
+        };
+        let track = parse_candidate(candidate, "coldplay yellow");
+        assert_eq!(track.artists, vec!["Coldplay".to_string()]);
+        assert_eq!(track.title, "Yellow");
+    }
+
+    #[test]
+    fn test_parse_candidate_topic_channel_fallback() {
+        let candidate = YtdlpCandidate {
+            id: "vid456".to_string(),
+            title: "Viva La Vida".to_string(),
+            duration: Some(240.0),
+            uploader: Some("Coldplay - Topic".to_string()),
+            channel: Some("Coldplay - Topic".to_string()),
+            artist: None,
+            track: None,
+        };
+        let track = parse_candidate(candidate, "https://www.youtube.com/watch?v=vid456");
+        assert_eq!(track.artists, vec!["Coldplay".to_string()]);
+        assert_eq!(track.title, "Viva La Vida");
+        assert_eq!(track.source_artist, "URL");
+        assert_eq!(track.video_id, Some("vid456".to_string()));
+    }
 }

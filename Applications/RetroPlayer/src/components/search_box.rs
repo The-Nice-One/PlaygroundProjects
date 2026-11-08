@@ -9,6 +9,7 @@ pub struct SearchBox {
     pub postfix: String,
     pub left: StatefulString,
     pub right: StatefulString,
+    pub submitted: bool,
 }
 
 impl SearchBox {
@@ -29,6 +30,16 @@ impl SearchBox {
                 .hovered("  ]".with(theme!().accent))
                 .active("  ]".with(theme!().accent).bold())
                 .into(),
+            submitted: false,
+        }
+    }
+
+    pub fn take_submitted_query(&mut self) -> Option<String> {
+        if self.submitted {
+            self.submitted = false;
+            Some(self.query.trim().to_string())
+        } else {
+            None
         }
     }
 }
@@ -65,7 +76,10 @@ impl Component for SearchBox {
             }
 
             if event.code == KeyCode::Enter {
-                self.prefix.state = State::Active;
+                if !self.query.trim().is_empty() {
+                    self.submitted = true;
+                }
+                self.set_state(State::Hovered);
             }
         }
     }
