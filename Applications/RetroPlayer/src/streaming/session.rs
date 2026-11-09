@@ -4,8 +4,8 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 
 use super::library::LibraryIndex;
 use super::recommend::{
-    MbRateLimiter, RecommendedTrack, StreamingConfigSnapshot, generate_recommendations,
-    lookup_recording_metadata, sanitize_filename,
+    MbRateLimiter, RecommendedTrack, StreamingConfigSnapshot, artists_match,
+    generate_recommendations, lookup_recording_metadata, sanitize_filename,
 };
 use super::ytdlp;
 
@@ -154,7 +154,7 @@ impl StreamingSession {
                             // Retain cover performer/collaborator if credited in track.artists
                             if track.artists.len() > 1 {
                                 for extra in &track.artists[1..] {
-                                    if !combined.iter().any(|a| a.eq_ignore_ascii_case(extra)) {
+                                    if !combined.iter().any(|a| artists_match(a, extra)) {
                                         combined.push(extra.clone());
                                     }
                                 }

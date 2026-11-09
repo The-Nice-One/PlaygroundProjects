@@ -43,6 +43,42 @@ pub fn sanitize_filename(name: &str) -> String {
         .to_string()
 }
 
+/// Maps common Latin diacritics to their base ASCII equivalents.
+pub fn deaccent_char(c: char) -> char {
+    match c {
+        'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'ā' | 'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' | 'Ā' => {
+            'a'
+        }
+        'è' | 'é' | 'ê' | 'ë' | 'ē' | 'È' | 'É' | 'Ê' | 'Ë' | 'Ē' => 'e',
+        'ì' | 'í' | 'î' | 'ï' | 'ī' | 'Ì' | 'Í' | 'Î' | 'Ï' | 'Ī' => 'i',
+        'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' | 'ō' | 'Ò' | 'Ó' | 'Ô' | 'Õ' | 'Ö' | 'Ø' | 'Ō' => {
+            'o'
+        }
+        'ù' | 'ú' | 'û' | 'ü' | 'ū' | 'Ù' | 'Ú' | 'Û' | 'Ü' | 'Ū' => 'u',
+        'ý' | 'ÿ' | 'Ý' | 'Ÿ' => 'y',
+        'ñ' | 'Ñ' => 'n',
+        'ç' | 'Ç' => 'c',
+        other => other,
+    }
+}
+
+/// Normalizes an artist name for comparison by folding diacritics to ASCII,
+/// lowercasing, and stripping non-alphanumeric punctuation.
+pub fn normalize_artist_name(name: &str) -> String {
+    name.chars()
+        .map(|c| deaccent_char(c).to_ascii_lowercase())
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Checks whether two artist names are identical under case- and diacritic-insensitive normalization.
+pub fn artists_match(a: &str, b: &str) -> bool {
+    normalize_artist_name(a) == normalize_artist_name(b)
+}
+
 /// Plain-data snapshot of the bits of `Configuration.streaming` that the background
 /// thread needs. Built once on the main thread (which can read the `CONFIGURATION`
 /// `RwLock` briefly) and then moved into the spawned thread, which must never itself
@@ -524,5 +560,14 @@ mod tests {
             sanitize_filename("Artist / Name : Track * Title ? \"Quote\" <bracket> | test"),
             "Artist _ Name _ Track _ Title _ _Quote_ _bracket_ _ test"
         );
+    }
+
+    #[test]
+    fn test_artists_match_diacritics() {
+        assert!(artists_match("ÊMIA", "EMIA"));
+        assert!(artists_match("emia", "ÊMIA"));
+        assert!(artists_match("Beyoncé", "Beyonce"));
+        assert!(artists_match("Motörhead", "Motorhead"));
+        assert!(!artists_match("Duumu", "EMIA"));
     }
 }

@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::path::Path;
 use std::process::Command;
 
-use super::recommend::RecommendedTrack;
+use super::recommend::{RecommendedTrack, artists_match};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct YtdlpCandidate {
@@ -69,6 +69,27 @@ pub fn is_cover_or_performance(text: &str) -> bool {
     keywords.iter().any(|k| lower.contains(k))
 }
 
+/// Strips leading bracketed genre prefixes such as `[Electro] - ` or `[Dubstep] - `
+/// commonly found in record label uploads (e.g. Monstercat, NCS).
+pub fn strip_leading_bracketed_tag(title: &str) -> &str {
+    let t = title.trim();
+    if t.starts_with('[') {
+        if let Some(close_bracket) = t.find(']') {
+            let after = t[close_bracket + 1..].trim();
+            if let Some(stripped) = after.strip_prefix('-') {
+                return stripped.trim();
+            } else if let Some(stripped) = after.strip_prefix('–') {
+                return stripped.trim();
+            } else if let Some(stripped) = after.strip_prefix('—') {
+                return stripped.trim();
+            } else if after.contains(" - ") || after.contains(" – ") {
+                return after;
+            }
+        }
+    }
+    t
+}
+
 /// Removes common noise and resolution tags from video titles.
 pub fn strip_clutter(text: &str) -> String {
     let clutter_patterns = [
@@ -102,6 +123,16 @@ pub fn strip_clutter(text: &str) -> String {
         "[guitar cover]",
         "(cover)",
         "[cover]",
+        "[monstercat release]",
+        "(monstercat release)",
+        "[monstercat lyric video]",
+        "(monstercat lyric video)",
+        "[monstercat official music video]",
+        "(monstercat official music video)",
+        "[ncs release]",
+        "(ncs release)",
+        "[official lyric video]",
+        "(official lyric video)",
     ];
 
     let mut result = text.to_string();
@@ -114,26 +145,80 @@ pub fn strip_clutter(text: &str) -> String {
     result.trim().to_string()
 }
 
-/// Extracts featured artist mentions (e.g. `ft. X` or `feat. X`) from title text.
+/// Extracts featured artist mentions (e.g. `(feat. X)`, `[feat. X]`, `ft. X`) from title text.
 pub fn extract_features(text: &str) -> (Vec<String>, String) {
     let lower = text.to_lowercase();
-    let markers = [" ft. ", " feat. ", " ft ", " feat ", " featuring "];
+    let marker_prefixes = [
+        "(feat. ",
+        "(feat ",
+        "(ft. ",
+        "(ft ",
+        "(featuring ",
+        "(with ",
+        "[feat. ",
+        "[feat ",
+        "[ft. ",
+        "[ft ",
+        "[featuring ",
+        "[with ",
+        " feat. ",
+        " feat ",
+        " ft. ",
+        " ft ",
+        " featuring ",
+        " with ",
+    ];
 
-    for marker in markers {
+    for marker in marker_prefixes {
         if let Some(idx) = lower.find(marker) {
-            let left = text[..idx].trim().to_string();
-            let right = &text[idx + marker.len()..];
-            let clean_right = right
-                .trim_end_matches(|c| c == ')' || c == ']' || c == '}')
-                .trim();
+            let close_char = if marker.starts_with('(') {
+                Some(')')
+            } else if marker.starts_with('[') {
+                Some(']')
+            } else {
+                None
+            };
 
-            let features: Vec<String> = clean_right
+            let left = text[..idx].trim();
+            let rest = &text[idx + marker.len()..];
+
+            let (raw_feats, clean_title) = if let Some(close) = close_char {
+                if let Some(close_idx) = rest.find(close) {
+                    let feats_part = &rest[..close_idx];
+                    let trailing = rest[close_idx + 1..].trim();
+                    let clean = if trailing.is_empty() {
+                        left.to_string()
+                    } else {
+                        format!("{} {}", left, trailing)
+                    };
+                    (feats_part, clean)
+                } else {
+                    let clean_feats = rest.trim_end_matches(|c| c == ')' || c == ']' || c == '}');
+                    (clean_feats, left.to_string())
+                }
+            } else {
+                let clean_feats = rest.trim_end_matches(|c| c == ')' || c == ']' || c == '}');
+                (clean_feats, left.to_string())
+            };
+
+            let features: Vec<String> = raw_feats
                 .split(|c| c == ',' || c == '&')
+                .flat_map(|part| {
+                    if let Some(idx) = part.to_lowercase().find(" and ") {
+                        let a = part[..idx].trim().to_string();
+                        let b = part[idx + 5..].trim().to_string();
+                        vec![a, b]
+                    } else {
+                        vec![part.trim().to_string()]
+                    }
+                })
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
 
-            return (features, left);
+            if !features.is_empty() {
+                return (features, clean_title.trim().to_string());
+            }
         }
     }
 
@@ -151,8 +236,11 @@ pub fn parse_youtube_title_smart(
     let clean_uploader = clean_uploader_name(raw_uploader);
     let mut is_cover = is_cover_or_performance(raw_title);
 
+    // 0. Strip leading bracketed genre tag (e.g. "[Electro] - ")
+    let title_without_tag = strip_leading_bracketed_tag(raw_title);
+
     // 1. Split into segments using pipe (|), slash (/), bullet (•), or broken bar (¦)
-    let segments: Vec<&str> = raw_title
+    let segments: Vec<&str> = title_without_tag
         .split(|c| c == '|' || c == '/' || c == '•' || c == '¦')
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
@@ -188,7 +276,12 @@ pub fn parse_youtube_title_smart(
         .iter()
         .find(|&&s| s.contains(" - "))
         .copied()
-        .unwrap_or(filtered_segments.first().copied().unwrap_or(raw_title));
+        .unwrap_or(
+            filtered_segments
+                .first()
+                .copied()
+                .unwrap_or(title_without_tag),
+        );
 
     // 3. Extract primary artist and title part
     let mut artists: Vec<String> = Vec::new();
@@ -206,7 +299,7 @@ pub fn parse_youtube_title_smart(
         } else {
             for a in left_trimmed.split(|c| c == ',' || c == '&') {
                 let trimmed = a.trim();
-                if !trimmed.is_empty() {
+                if !trimmed.is_empty() && !artists.iter().any(|x| artists_match(x, trimmed)) {
                     artists.push(trimmed.to_string());
                 }
             }
@@ -221,10 +314,10 @@ pub fn parse_youtube_title_smart(
         }
     }
 
-    // 4. Extract featured artists from title part (e.g. "Get Lucky ft. Pharrell Williams")
+    // 4. Extract featured artists from title part (e.g. "Safe & Sound (feat. Danyka Nadeau)")
     let (features, title_without_features) = extract_features(&raw_title_part);
     for feat in features {
-        if !artists.contains(&feat) {
+        if !artists.iter().any(|x| artists_match(x, &feat)) {
             artists.push(feat);
         }
     }
@@ -233,7 +326,10 @@ pub fn parse_youtube_title_smart(
     let final_title = strip_clutter(&title_without_features);
 
     // 6. If it is a cover/performance and uploader is distinct, credit performer as co-artist
-    if is_cover && !clean_uploader.is_empty() && !artists.contains(&clean_uploader) {
+    if is_cover
+        && !clean_uploader.is_empty()
+        && !artists.iter().any(|x| artists_match(x, &clean_uploader))
+    {
         artists.push(clean_uploader);
     }
 
@@ -597,6 +693,43 @@ mod tests {
             ]
         );
         assert_eq!(track.title, "Get Lucky");
+    }
+
+    #[test]
+    fn test_parse_candidate_safe_and_sound() {
+        let candidate = YtdlpCandidate {
+            id: "mc9LKJMedaY".to_string(),
+            title:
+                "[Electro] - Nitro Fun - Safe & Sound (feat. Danyka Nadeau) [Monstercat Release]"
+                    .to_string(),
+            duration: Some(245.0),
+            uploader: Some("Monstercat Uncaged".to_string()),
+            channel: Some("Monstercat Uncaged".to_string()),
+            artist: None,
+            track: None,
+        };
+        let track = parse_candidate(candidate, "Nitro Fun - Safe & Sound");
+        assert_eq!(
+            track.artists,
+            vec!["Nitro Fun".to_string(), "Danyka Nadeau".to_string()]
+        );
+        assert_eq!(track.title, "Safe & Sound");
+    }
+
+    #[test]
+    fn test_parse_candidate_duumu_talk() {
+        let candidate = YtdlpCandidate {
+            id: "vid_talk".to_string(),
+            title: "Duumu & ÊMIA - Talk! [Monstercat Lyric Video]".to_string(),
+            duration: Some(180.0),
+            uploader: Some("Monstercat Instinct".to_string()),
+            channel: Some("Monstercat Instinct".to_string()),
+            artist: None,
+            track: None,
+        };
+        let track = parse_candidate(candidate, "Duumu Talk");
+        assert_eq!(track.artists, vec!["Duumu".to_string(), "ÊMIA".to_string()]);
+        assert_eq!(track.title, "Talk!");
     }
 
     #[test]
