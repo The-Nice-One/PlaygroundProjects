@@ -546,13 +546,14 @@ pub fn download(ytdlp_path: &str, video_id_or_url: &str, output_path: &Path) -> 
     Ok(())
 }
 
-/// Writes artist/title/album tags onto a downloaded file.
+/// Writes artist/title/album and optional lyrics tags onto a downloaded file.
 pub fn tag_file(
     path: &Path,
     artists: &[String],
     title: &str,
     album: Option<&str>,
     url: &str,
+    lyrics: Option<&str>,
 ) -> anyhow::Result<()> {
     use lofty::config::WriteOptions;
     use lofty::file::TaggedFileExt;
@@ -588,6 +589,13 @@ pub fn tag_file(
         ItemValue::Locator(url.to_string()),
     ));
 
+    if let Some(lyr) = lyrics {
+        tag.insert(TagItem::new(
+            ItemKey::Lyrics,
+            ItemValue::Text(lyr.to_string()),
+        ));
+    }
+
     let thumb_path = path.with_extension("jpg");
     if thumb_path.exists() {
         if let Ok(pic_data) = std::fs::read(&thumb_path) {
@@ -605,6 +613,13 @@ pub fn tag_file(
     let mut write_options = WriteOptions::new();
     write_options.use_id3v23(true);
     tag.save_to_path(path, write_options)?;
+    Ok(())
+}
+
+/// Writes companion `.lrc` file alongside the given audio file path.
+pub fn save_lrc_file(path: &Path, content: &str) -> anyhow::Result<()> {
+    let lrc_path = path.with_extension("lrc");
+    std::fs::write(lrc_path, content)?;
     Ok(())
 }
 
@@ -780,5 +795,21 @@ mod tests {
         assert_eq!(track.title, "Viva La Vida");
         assert_eq!(track.source_artist, "URL");
         assert_eq!(track.video_id, Some("vid456".to_string()));
+    }
+
+    #[test]
+    fn test_save_lrc_file() {
+        let temp_dir = std::env::temp_dir();
+        let audio_path = temp_dir.join("test_song.mp3");
+        let lrc_path = temp_dir.join("test_song.lrc");
+
+        let lrc_content = "[00:10.00] Test line\n";
+        save_lrc_file(&audio_path, lrc_content).unwrap();
+
+        assert!(lrc_path.exists());
+        let read_back = std::fs::read_to_string(&lrc_path).unwrap();
+        assert_eq!(read_back, lrc_content);
+
+        let _ = std::fs::remove_file(lrc_path);
     }
 }

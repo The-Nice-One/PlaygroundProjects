@@ -40,6 +40,13 @@ listenbrainz_mode = \"easy\"
 ytdlp_path = \"yt-dlp\"
 # Where downloaded tracks are saved. Leave blank to use songs_directory.
 download_directory = \"\"
+
+# Lyrics fetching & embedding configuration.
+[lyrics]
+enabled = true
+prefer_synced = true
+save_lrc_file = true
+embed_in_audio = true
 ";
 
 pub fn get_configuration_path() -> Result<PathBuf> {
@@ -122,6 +129,36 @@ fn default_restore_last_playlist() -> bool {
     true
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct LyricsTemplate {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub prefer_synced: bool,
+    #[serde(default = "default_true")]
+    pub save_lrc_file: bool,
+    #[serde(default = "default_true")]
+    pub embed_in_audio: bool,
+    #[serde(default)]
+    pub apple_developer_token: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for LyricsTemplate {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            prefer_synced: true,
+            save_lrc_file: true,
+            embed_in_audio: true,
+            apple_developer_token: None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ConfigurationTemplate {
     pub songs_directory: String,
@@ -133,6 +170,8 @@ pub struct ConfigurationTemplate {
     pub theme: ThemeTemplate,
     #[serde(default)]
     pub streaming: StreamingTemplate,
+    #[serde(default)]
+    pub lyrics: LyricsTemplate,
 }
 
 pub struct Theme {
@@ -174,6 +213,39 @@ impl std::default::Default for StreamingConfig {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct LyricsConfig {
+    pub enabled: bool,
+    pub prefer_synced: bool,
+    pub save_lrc_file: bool,
+    pub embed_in_audio: bool,
+    pub apple_developer_token: Option<String>,
+}
+
+impl From<LyricsTemplate> for LyricsConfig {
+    fn from(val: LyricsTemplate) -> Self {
+        Self {
+            enabled: val.enabled,
+            prefer_synced: val.prefer_synced,
+            save_lrc_file: val.save_lrc_file,
+            embed_in_audio: val.embed_in_audio,
+            apple_developer_token: val.apple_developer_token,
+        }
+    }
+}
+
+impl Default for LyricsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            prefer_synced: true,
+            save_lrc_file: true,
+            embed_in_audio: true,
+            apple_developer_token: None,
+        }
+    }
+}
+
 pub struct Configuration {
     pub songs_directory: String,
     pub song_directories: Vec<String>,
@@ -181,6 +253,7 @@ pub struct Configuration {
     pub discord_presence: bool,
     pub theme: Theme,
     pub streaming: StreamingConfig,
+    pub lyrics: LyricsConfig,
 }
 
 impl From<ConfigurationTemplate> for Configuration {
@@ -196,6 +269,7 @@ impl From<ConfigurationTemplate> for Configuration {
                 accent: color_from_string(value.theme.accent),
             },
             streaming: value.streaming.into(),
+            lyrics: value.lyrics.into(),
         }
     }
 }
@@ -213,6 +287,7 @@ impl std::default::Default for Configuration {
                 accent: Color::Blue,
             },
             streaming: StreamingConfig::default(),
+            lyrics: LyricsConfig::default(),
         }
     }
 }

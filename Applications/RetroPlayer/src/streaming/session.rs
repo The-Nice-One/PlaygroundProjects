@@ -118,6 +118,7 @@ impl StreamingSession {
         track: RecommendedTrack,
         download_dir: PathBuf,
         ytdlp_path: String,
+        lyrics_config: crate::configuration::LyricsConfig,
     ) {
         let in_flight_key = sanitize_filename(&track.song_name());
         if self.in_flight.contains(&in_flight_key) {
@@ -182,12 +183,39 @@ impl StreamingSession {
                 } else {
                     format!("https://www.youtube.com/watch?v={}", video_id)
                 };
+
+                // Fetch lyrics if enabled
+                let mut lyrics_str: Option<String> = None;
+                if lyrics_config.enabled {
+                    let artist_param = final_artists.first().map(|s| s.as_str()).unwrap_or("");
+                    if let Some(track_lyrics) = crate::streaming::lyrics::fetch_best_lyrics(
+                        artist_param,
+                        &final_title,
+                        album.as_deref(),
+                        None,
+                        lyrics_config.apple_developer_token.as_deref(),
+                    ) {
+                        let content = if lyrics_config.prefer_synced {
+                            track_lyrics.to_elrc_string()
+                        } else {
+                            track_lyrics.plain_text.clone()
+                        };
+                        if lyrics_config.save_lrc_file {
+                            let _ = ytdlp::save_lrc_file(&output_path, &content);
+                        }
+                        if lyrics_config.embed_in_audio {
+                            lyrics_str = Some(content);
+                        }
+                    }
+                }
+
                 ytdlp::tag_file(
                     &output_path,
                     &final_artists,
                     &final_title,
                     album.as_deref(),
                     &url,
+                    lyrics_str.as_deref(),
                 )?;
                 Ok((song_key, output_path))
             })();

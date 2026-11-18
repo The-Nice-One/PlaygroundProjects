@@ -323,8 +323,9 @@ pub fn handle_streaming_controls(
                     PathBuf::from(&config.streaming.download_directory)
                 };
                 let ytdlp_path = config.streaming.ytdlp_path.clone();
+                let lyrics_config = config.lyrics.clone();
                 drop(config);
-                streaming.start_download(track, download_dir, ytdlp_path);
+                streaming.start_download(track, download_dir, ytdlp_path, lyrics_config);
             }
         }
     }
