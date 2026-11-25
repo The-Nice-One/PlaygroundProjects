@@ -616,9 +616,13 @@ pub fn tag_file(
     Ok(())
 }
 
-/// Writes companion `.lrc` file alongside the given audio file path.
+/// Writes companion `.lrc` file inside a `lyrics/` subdirectory alongside the given audio file path.
 pub fn save_lrc_file(path: &Path, content: &str) -> anyhow::Result<()> {
-    let lrc_path = path.with_extension("lrc");
+    let parent = path.parent().unwrap_or(Path::new("."));
+    let lyrics_dir = parent.join("lyrics");
+    std::fs::create_dir_all(&lyrics_dir)?;
+    let file_stem = path.file_stem().unwrap_or_default();
+    let lrc_path = lyrics_dir.join(format!("{}.lrc", file_stem.to_string_lossy()));
     std::fs::write(lrc_path, content)?;
     Ok(())
 }
@@ -799,9 +803,10 @@ mod tests {
 
     #[test]
     fn test_save_lrc_file() {
-        let temp_dir = std::env::temp_dir();
+        let temp_dir = std::env::temp_dir().join("retro_player_test_ytdlp_lyrics");
+        std::fs::create_dir_all(&temp_dir).unwrap();
         let audio_path = temp_dir.join("test_song.mp3");
-        let lrc_path = temp_dir.join("test_song.lrc");
+        let lrc_path = temp_dir.join("lyrics").join("test_song.lrc");
 
         let lrc_content = "[00:10.00] Test line\n";
         save_lrc_file(&audio_path, lrc_content).unwrap();
@@ -810,6 +815,6 @@ mod tests {
         let read_back = std::fs::read_to_string(&lrc_path).unwrap();
         assert_eq!(read_back, lrc_content);
 
-        let _ = std::fs::remove_file(lrc_path);
+        let _ = std::fs::remove_dir_all(temp_dir);
     }
 }

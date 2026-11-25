@@ -18,6 +18,23 @@ const SEED_ARTIST_COUNT: usize = 8;
 /// How many yt-dlp search results to consider per track when picking the best match.
 const SEARCH_RESULT_COUNT: u32 = 5;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StreamingDisplayMode {
+    Recommendations,
+    Search { query: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DownloadOrigin {
+    Manual {
+        playlist_dir: PathBuf,
+        insert_after_key: Option<String>,
+    },
+    Streaming {
+        playlist_dir: PathBuf,
+    },
+}
+
 pub enum StreamingEvent {
     RecommendationsReady(Vec<RecommendedTrack>),
     RecommendationsFailed(String),
@@ -28,6 +45,7 @@ pub enum StreamingEvent {
         in_flight_key: String,
         song_key: String,
         path: PathBuf,
+        origin: DownloadOrigin,
     },
     DownloadFailed(String, String),
 }
@@ -40,6 +58,8 @@ pub struct StreamingSession {
     pub in_flight: HashSet<String>,
     pub refreshing: bool,
     pub searching: bool,
+    pub display_mode: StreamingDisplayMode,
+    pub last_manual_anchor: Option<String>,
     tx: Sender<StreamingEvent>,
     rx: Receiver<StreamingEvent>,
 }
@@ -52,9 +72,15 @@ impl StreamingSession {
             in_flight: HashSet::new(),
             refreshing: false,
             searching: false,
+            display_mode: StreamingDisplayMode::Recommendations,
+            last_manual_anchor: None,
             tx,
             rx,
         }
+    }
+
+    pub fn send_event(&self, event: StreamingEvent) {
+        let _ = self.tx.send(event);
     }
 
     /// Spawns a background thread that builds fresh recommendations from the given
@@ -88,6 +114,9 @@ impl StreamingSession {
     /// Spawns a background thread that searches for tracks or direct URLs using yt-dlp,
     /// populating recommendations with the results.
     pub fn search(&mut self, query: String, ytdlp_path: String, max_results: usize) {
+        self.display_mode = StreamingDisplayMode::Search {
+            query: query.clone(),
+        };
         if self.searching {
             return;
         }
@@ -119,6 +148,7 @@ impl StreamingSession {
         download_dir: PathBuf,
         ytdlp_path: String,
         lyrics_config: crate::configuration::LyricsConfig,
+        origin: DownloadOrigin,
     ) {
         let in_flight_key = sanitize_filename(&track.song_name());
         if self.in_flight.contains(&in_flight_key) {
@@ -131,6 +161,13 @@ impl StreamingSession {
             let _ = tx.send(StreamingEvent::DownloadStarted(in_flight_key.clone()));
 
             let result = (|| -> anyhow::Result<(String, PathBuf)> {
+                let initial_song_key = sanitize_filename(&track.song_name());
+                let initial_output_path = download_dir.join(format!("{}.mp3", initial_song_key));
+                if initial_output_path.exists() {
+                    log::debug!("Reusing cached audio file: {:?}", initial_output_path);
+                    return Ok((initial_song_key, initial_output_path));
+                }
+
                 let video_id = if let Some(id) = &track.video_id {
                     id.clone()
                 } else {
@@ -176,6 +213,11 @@ impl StreamingSession {
                 let song_key = sanitize_filename(&final_song_name);
 
                 let output_path = download_dir.join(format!("{}.mp3", song_key));
+                if output_path.exists() {
+                    log::debug!("Reusing cached audio file: {:?}", output_path);
+                    return Ok((song_key, output_path));
+                }
+
                 ytdlp::download(&ytdlp_path, &video_id, &output_path)?;
 
                 let url = if video_id.starts_with("http://") || video_id.starts_with("https://") {
@@ -225,6 +267,7 @@ impl StreamingSession {
                     in_flight_key,
                     song_key,
                     path,
+                    origin,
                 },
                 Err(e) => StreamingEvent::DownloadFailed(in_flight_key, e.to_string()),
             };
@@ -241,23 +284,33 @@ impl StreamingSession {
             match &event {
                 StreamingEvent::RecommendationsReady(tracks) => {
                     self.refreshing = false;
-                    self.recommendations = tracks.clone();
+                    if self.display_mode == StreamingDisplayMode::Recommendations {
+                        self.recommendations = tracks.clone();
+                    }
                 }
                 StreamingEvent::RecommendationsFailed(_) => {
                     self.refreshing = false;
                 }
-                StreamingEvent::SearchResultsReady(_, tracks) => {
+                StreamingEvent::SearchResultsReady(query, tracks) => {
                     self.searching = false;
-                    self.recommendations = tracks.clone();
+                    if matches!(&self.display_mode, StreamingDisplayMode::Search { query: q } if q == query) {
+                        self.recommendations = tracks.clone();
+                    }
                 }
                 StreamingEvent::SearchResultsFailed(_, _) => {
                     self.searching = false;
                 }
                 StreamingEvent::DownloadComplete { in_flight_key, .. } => {
                     self.in_flight.remove(in_flight_key);
+                    if self.in_flight.is_empty() {
+                        self.last_manual_anchor = None;
+                    }
                 }
                 StreamingEvent::DownloadFailed(key, _) => {
                     self.in_flight.remove(key);
+                    if self.in_flight.is_empty() {
+                        self.last_manual_anchor = None;
+                    }
                 }
                 StreamingEvent::DownloadStarted(_) => {}
             }
@@ -272,3 +325,110 @@ impl Default for StreamingSession {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cached_recommendation_reuse() {
+        let temp_dir = std::env::temp_dir().join(format!("retro_test_cache_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let track = RecommendedTrack {
+            artists: vec!["Cached Artist".to_string()],
+            title: "Cached Title".to_string(),
+            source_artist: "Seed Artist".to_string(),
+            recording_mbid: None,
+            video_id: Some("cached_id_123".to_string()),
+        };
+        let song_key = sanitize_filename(&track.song_name());
+        let cached_file = temp_dir.join(format!("{}.mp3", song_key));
+        std::fs::write(&cached_file, b"test cached audio content").unwrap();
+
+        let mut session = StreamingSession::new();
+        let lyrics_config = crate::configuration::LyricsConfig::default();
+        session.start_download(
+            track,
+            temp_dir.clone(),
+            "nonexistent-ytdlp".to_string(),
+            lyrics_config,
+            DownloadOrigin::Streaming {
+                playlist_dir: temp_dir.clone(),
+            },
+        );
+
+        // Allow worker thread to detect existing file and emit DownloadComplete
+        for _ in 0..50 {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            let events = session.poll();
+            if events.iter().any(|e| matches!(
+                e,
+                StreamingEvent::DownloadComplete { path, origin, .. }
+                    if path == &cached_file
+                        && matches!(origin, DownloadOrigin::Streaming { playlist_dir } if playlist_dir == &temp_dir)
+            )) {
+                let _ = std::fs::remove_file(&cached_file);
+                let _ = std::fs::remove_dir_all(&temp_dir);
+                return;
+            }
+        }
+        let _ = std::fs::remove_file(&cached_file);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        panic!("Timed out waiting for cached DownloadComplete event");
+    }
+
+    #[test]
+    fn test_display_mode_protects_search() {
+        let mut session = StreamingSession::new();
+        session.display_mode = StreamingDisplayMode::Search {
+            query: "rock".to_string(),
+        };
+
+        let track = RecommendedTrack {
+            artists: vec!["Artist".to_string()],
+            title: "Title".to_string(),
+            source_artist: "Seed".to_string(),
+            recording_mbid: None,
+            video_id: None,
+        };
+
+        // Emit RecommendationsReady event while in Search mode
+        session.send_event(StreamingEvent::RecommendationsReady(vec![track.clone()]));
+        let _ = session.poll();
+
+        // Visible recommendations must NOT be overwritten by recommendations event!
+        assert!(session.recommendations.is_empty());
+
+        // Now emit SearchResultsReady for the matching query
+        session.send_event(StreamingEvent::SearchResultsReady("rock".to_string(), vec![track.clone()]));
+        let _ = session.poll();
+
+        // Search results must populate recommendations
+        assert_eq!(session.recommendations.len(), 1);
+        assert_eq!(session.recommendations[0].title, "Title");
+    }
+
+    #[test]
+    fn test_stale_search_dropped() {
+        let mut session = StreamingSession::new();
+        session.display_mode = StreamingDisplayMode::Search {
+            query: "query_b".to_string(),
+        };
+
+        let track_a = RecommendedTrack {
+            artists: vec!["Artist A".to_string()],
+            title: "Song A".to_string(),
+            source_artist: "Search".to_string(),
+            recording_mbid: None,
+            video_id: None,
+        };
+
+        // Late response arrives for query_a
+        session.send_event(StreamingEvent::SearchResultsReady("query_a".to_string(), vec![track_a]));
+        let _ = session.poll();
+
+        // Late response for old query must be dropped
+        assert!(session.recommendations.is_empty());
+    }
+}
+

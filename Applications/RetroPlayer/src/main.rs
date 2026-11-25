@@ -72,6 +72,9 @@ fn main() {
     let mut player = PlayerSession::default();
     if let Some(path) = playlist_paths.get(selected_playlist) {
         player.load_playlist(path);
+        if configuration!().preshuffle {
+            player.shuffle();
+        }
     }
 
     let mut discord_rpc_handles = vec![];
@@ -170,6 +173,7 @@ fn main() {
         new_recommendations_grid(configuration!().streaming.recommendations_per_fetch);
     let mut playlist_dropdown = PlaylistDropdown::new(playlist_paths, selected_playlist);
     let mut streaming_session = streaming::StreamingSession::new();
+    let mut streaming_coordinator = streaming::StreamingCoordinator::new();
     if configuration!().streaming.enabled {
         trigger_recommendation_refresh(&mut streaming_session, &player);
     }
@@ -183,36 +187,61 @@ fn main() {
     view_registry.register(Box::new(LogView::new()));
 
     let mut running = true;
+    let mut is_navigating_previous = false;
+    let mut last_topup_refresh_attempt: Option<std::time::Instant> = None;
     while running {
         terminal.poll(100);
         terminal.top();
 
         if manager.main_track().num_sounds() == 0 && !player.songs.is_empty() {
-            player.next();
+            if is_navigating_previous {
+                is_navigating_previous = false;
+            } else {
+                let is_auto_stream = player
+                    .current()
+                    .map(|(_, path)| path.contains("recommendations"))
+                    .unwrap_or(false);
 
-            let sound_data = StaticSoundData::from_file(player.current().unwrap().1).unwrap();
-            let duration = sound_data.unsliced_duration();
-            player_bar.maximum = duration.as_secs() as u32;
-            sound = Some(manager.play(sound_data.clone()).unwrap());
-            sound
-                .as_mut()
-                .unwrap()
-                .set_volume(volume_bar.db, kira::Tween::default());
+                if is_auto_stream {
+                    if let Some((removed_name, _)) = player.advance_and_remove_current() {
+                        streaming_coordinator.mark_played(&removed_name);
+                    }
+                } else {
+                    player.next();
+                }
 
-            let song_name = player.current().unwrap().0.clone();
-            media_controls
-                .set_metadata(MediaMetadata {
-                    title: Some(&song_name),
-                    artist: Some("Retro Player"),
-                    album: None,
-                    duration: Some(std::time::Duration::from_secs(player_bar.maximum as u64)),
-                    cover_url: None,
-                })
-                .ok();
+                if configuration!().streaming.streaming_mode {
+                    if streaming_coordinator.on_song_played() {
+                        trigger_recommendation_refresh(&mut streaming_session, &player);
+                    }
+                }
+            }
 
-            update_song_list(&mut song_list, &player);
-            let activity = build_activity(&player);
-            update_discord_rpc(&discord_rpc, &mut discord_rpc_handles, activity);
+            if let Some((_, path)) = player.current() {
+                let sound_data = StaticSoundData::from_file(path).unwrap();
+                let duration = sound_data.unsliced_duration();
+                player_bar.maximum = duration.as_secs() as u32;
+                sound = Some(manager.play(sound_data.clone()).unwrap());
+                sound
+                    .as_mut()
+                    .unwrap()
+                    .set_volume(volume_bar.db, kira::Tween::default());
+
+                let song_name = player.current().unwrap().0.clone();
+                media_controls
+                    .set_metadata(MediaMetadata {
+                        title: Some(&song_name),
+                        artist: Some("Retro Player"),
+                        album: None,
+                        duration: Some(std::time::Duration::from_secs(player_bar.maximum as u64)),
+                        cover_url: None,
+                    })
+                    .ok();
+
+                update_song_list(&mut song_list, &player);
+                let activity = build_activity(&player);
+                update_discord_rpc(&discord_rpc, &mut discord_rpc_handles, activity);
+            }
         }
 
         if let Some(s) = &sound {
@@ -258,7 +287,7 @@ fn main() {
                 }
                 MediaControlEvent::Previous => {
                     player.previous();
-                    player.previous();
+                    is_navigating_previous = true;
                     if let Some(s) = sound.as_mut() {
                         s.stop(Tween::default());
                     }
@@ -277,7 +306,13 @@ fn main() {
         for event in streaming_session.poll() {
             match event {
                 StreamingEvent::RecommendationsReady(tracks) => {
-                    update_recommendation_labels(&mut recommendations, &tracks);
+                    let library = crate::streaming::LibraryIndex::from_song_keys(&player.songs);
+                    let seed_artists = library.seed_artists(8);
+                    streaming_coordinator.add_candidates(tracks.clone(), &seed_artists);
+
+                    if streaming_session.display_mode == crate::streaming::session::StreamingDisplayMode::Recommendations {
+                        update_recommendation_labels(&mut recommendations, &tracks);
+                    }
                     if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
                         if tracks.is_empty() {
                             entry.fail("Found 0 recommendations. Try adding more songs with 'Artist - Title' filenames.");
@@ -295,7 +330,9 @@ fn main() {
                     }
                 }
                 StreamingEvent::SearchResultsReady(query, tracks) => {
-                    update_recommendation_labels(&mut recommendations, &tracks);
+                    if matches!(&streaming_session.display_mode, crate::streaming::session::StreamingDisplayMode::Search { query: q } if q == &query) {
+                        update_recommendation_labels(&mut recommendations, &tracks);
+                    }
                     if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
                         if tracks.is_empty() {
                             entry.fail(format!("Found 0 results for '{}'", query));
@@ -319,18 +356,119 @@ fn main() {
                         Entry::new(format!("Downloading: {}", key)),
                     );
                 }
-                StreamingEvent::DownloadComplete { song_key, path, .. } => {
-                    player
-                        .songs
-                        .insert(song_key.clone(), path.to_string_lossy().to_string());
-                    update_song_list(&mut song_list, &player);
+                StreamingEvent::DownloadComplete {
+                    song_key,
+                    path,
+                    origin,
+                    ..
+                } => {
+                    let current_playlist = playlist_dropdown.current_path().map(std::path::PathBuf::from);
+                    let target_playlist = match &origin {
+                        crate::streaming::session::DownloadOrigin::Manual { playlist_dir, .. } => playlist_dir,
+                        crate::streaming::session::DownloadOrigin::Streaming { playlist_dir } => playlist_dir,
+                    };
+
+                    let limit = configuration!().streaming.recommendations_cache_limit;
+
+                    if current_playlist.as_ref() != Some(target_playlist) {
+                        // User switched playlists while this download was in flight.
+                        // Keep file on disk in target_playlist cache, but drop from current queue.
+                        let rec_dir = target_playlist.join("recommendations");
+                        let _ = crate::streaming::record_download(&rec_dir, &format!("{}.mp3", song_key));
+                        let _ = crate::streaming::prune_cache(target_playlist, limit, &[]);
+                        if matches!(origin, crate::streaming::session::DownloadOrigin::Streaming { .. }) {
+                            streaming_coordinator.is_downloading = false;
+                        }
+                    } else {
+                        match origin {
+                            crate::streaming::session::DownloadOrigin::Manual {
+                                insert_after_key,
+                                playlist_dir,
+                            } => {
+                                player.insert_after(
+                                    insert_after_key.as_deref(),
+                                    song_key.clone(),
+                                    path.to_string_lossy().to_string(),
+                                );
+                                let active: Vec<&str> =
+                                    player.songs.values().map(|s| s.as_str()).collect();
+                                let rec_dir = playlist_dir.join("recommendations");
+                                let _ = crate::streaming::record_download(&rec_dir, &format!("{}.mp3", song_key));
+                                let _ = crate::streaming::prune_cache(&playlist_dir, limit, &active);
+                            }
+                            crate::streaming::session::DownloadOrigin::Streaming { playlist_dir } => {
+                                player.insert_streaming_jitter(
+                                    song_key.clone(),
+                                    path.to_string_lossy().to_string(),
+                                );
+                                streaming_coordinator.is_downloading = false;
+                                let active: Vec<&str> =
+                                    player.songs.values().map(|s| s.as_str()).collect();
+                                let rec_dir = playlist_dir.join("recommendations");
+                                let _ = crate::streaming::record_download(&rec_dir, &format!("{}.mp3", song_key));
+                                let _ = crate::streaming::prune_cache(&playlist_dir, limit, &active);
+                            }
+                        }
+                        update_song_list(&mut song_list, &player);
+                    }
                     if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
                         entry.complete(format!("Download finished: {}", song_key));
                     }
                 }
                 StreamingEvent::DownloadFailed(key, err) => {
+                    streaming_coordinator.is_downloading = false;
                     if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
                         entry.fail(format!("Failed to download {}: {}", key, err));
+                    }
+                }
+            }
+        }
+
+        // Streaming mode queue buffer maintenance
+        if configuration!().streaming.enabled && configuration!().streaming.streaming_mode {
+            if !streaming_coordinator.is_downloading && !streaming_session.refreshing {
+                let lookahead_end = (player.current_index + 5).min(player.songs.len());
+                let start = (player.current_index + 1).min(player.songs.len());
+                let mut auto_stream_count = 0;
+                for i in start..lookahead_end {
+                    if let Some((_, path)) = player.songs.get_index(i) {
+                        if path.contains("recommendations") {
+                            auto_stream_count += 1;
+                        }
+                    }
+                }
+
+                if auto_stream_count < 2 {
+                    if let Some(candidate) = streaming_coordinator.pick_candidate(|name| player.songs.contains_key(name)) {
+                        streaming_coordinator.is_downloading = true;
+                        let config = configuration!();
+                        let base_dir = if let Some(current_playlist_path) = playlist_dropdown.current_path() {
+                            std::path::PathBuf::from(current_playlist_path)
+                        } else if !config.songs_directory.is_empty() {
+                            std::path::PathBuf::from(&config.songs_directory)
+                        } else {
+                            std::path::PathBuf::from(".")
+                        };
+                        let download_dir = base_dir.join("recommendations");
+                        let ytdlp_path = config.streaming.ytdlp_path.clone();
+                        let lyrics_config = config.lyrics.clone();
+                        drop(config);
+
+                        let playlist_dir = base_dir.clone();
+                        streaming_session.start_download(
+                            candidate,
+                            download_dir,
+                            ytdlp_path,
+                            lyrics_config,
+                            crate::streaming::session::DownloadOrigin::Streaming { playlist_dir },
+                        );
+                    } else if streaming_coordinator.candidate_pool.len() < 3 && !streaming_session.refreshing {
+                        let can_refresh = last_topup_refresh_attempt.map_or(true, |t| t.elapsed() >= std::time::Duration::from_secs(60));
+                        let has_artists = crate::streaming::LibraryIndex::from_song_keys(&player.songs).artist_count() > 0;
+                        if can_refresh && has_artists {
+                            last_topup_refresh_attempt = Some(std::time::Instant::now());
+                            trigger_recommendation_refresh(&mut streaming_session, &player);
+                        }
                     }
                 }
             }
@@ -351,11 +489,13 @@ fn main() {
                 volume_bar: &mut volume_bar,
                 sound: &mut sound,
                 player: &mut player,
+                is_navigating_previous: &mut is_navigating_previous,
                 log: &log,
                 search: &mut search,
                 recommendations: &mut recommendations,
                 playlist_dropdown: &mut playlist_dropdown,
                 streaming: &mut streaming_session,
+                streaming_coordinator: &mut streaming_coordinator,
             };
 
             if terminal.event.is_some() {

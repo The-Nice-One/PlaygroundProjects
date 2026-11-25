@@ -94,6 +94,7 @@ pub fn handle_audio_controls(
     sound: &mut Option<StaticSoundHandle>,
     song_list: &mut Grid,
     control_panel: &mut Text,
+    is_navigating_previous: &mut bool,
 ) {
     if audio_controls.get_state().unwrap_or(State::Disabled) == State::Hovered {
         control_panel
@@ -138,7 +139,7 @@ pub fn handle_audio_controls(
         && sound.is_some()
     {
         player.previous();
-        player.previous();
+        *is_navigating_previous = true;
         sound.as_mut().unwrap().stop(Tween::default());
     }
 
@@ -209,6 +210,11 @@ pub fn trigger_recommendation_refresh(streaming: &mut StreamingSession, player: 
 
     let library = LibraryIndex::from_song_keys(&player.songs);
     let artist_count = library.artist_count();
+
+    if artist_count == 0 {
+        streaming.send_event(crate::streaming::StreamingEvent::RecommendationsReady(Vec::new()));
+        return;
+    }
 
     logger!().add_entry(
         EntryId::Streaming,
@@ -310,6 +316,9 @@ pub fn handle_streaming_controls(
             == State::Active
         {
             if is_refresh_row {
+                streaming.display_mode = crate::streaming::session::StreamingDisplayMode::Recommendations;
+                crate::builders::set_recommendations_loading(recommendations);
+                streaming.recommendations.clear();
                 trigger_recommendation_refresh(streaming, player);
             } else if let Some(track) = streaming.recommendations.get(i).cloned() {
                 let config = configuration!();
@@ -325,7 +334,31 @@ pub fn handle_streaming_controls(
                 let ytdlp_path = config.streaming.ytdlp_path.clone();
                 let lyrics_config = config.lyrics.clone();
                 drop(config);
-                streaming.start_download(track, download_dir, ytdlp_path, lyrics_config);
+
+                let insert_after_key = if let Some(last_anchor) = &streaming.last_manual_anchor {
+                    Some(last_anchor.clone())
+                } else {
+                    player.current().map(|(k, _)| k.clone())
+                };
+                let song_key = crate::streaming::recommend::sanitize_filename(&track.song_name());
+                streaming.last_manual_anchor = Some(song_key);
+
+                let playlist_dir = if let Some(current_playlist_path) = playlist_dropdown.current_path() {
+                    PathBuf::from(current_playlist_path)
+                } else {
+                    download_dir.clone()
+                };
+
+                streaming.start_download(
+                    track,
+                    download_dir,
+                    ytdlp_path,
+                    lyrics_config,
+                    crate::streaming::session::DownloadOrigin::Manual {
+                        playlist_dir,
+                        insert_after_key,
+                    },
+                );
             }
         }
     }
@@ -334,6 +367,7 @@ pub fn handle_streaming_controls(
 pub fn handle_playlist_controls(
     playlist_dropdown: &mut PlaylistDropdown,
     streaming: &mut StreamingSession,
+    streaming_coordinator: &mut crate::streaming::StreamingCoordinator,
     recommendations: &mut Grid,
     player: &mut PlayerSession,
     song_list: &mut Grid,
@@ -365,6 +399,14 @@ pub fn handle_playlist_controls(
     }
 
     player.load_playlist(&path);
+    streaming.display_mode = crate::streaming::session::StreamingDisplayMode::Recommendations;
+    streaming.last_manual_anchor = None;
+    streaming_coordinator.is_downloading = false;
+    streaming_coordinator.session_played.clear();
+    streaming_coordinator.candidate_pool.clear();
+    if configuration!().preshuffle {
+        player.shuffle();
+    }
     update_song_list(song_list, player);
 
     set_recommendations_loading(recommendations);

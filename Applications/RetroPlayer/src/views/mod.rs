@@ -30,6 +30,7 @@ pub struct ViewState<'a> {
     pub volume_bar: &'a mut VolumeBar,
     pub sound: &'a mut Option<StaticSoundHandle>,
     pub player: &'a mut PlayerSession,
+    pub is_navigating_previous: &'a mut bool,
 
     // Log view specific
     pub log: &'a LogDisplay<'a>,
@@ -38,6 +39,7 @@ pub struct ViewState<'a> {
     pub search: &'a mut SearchBox,
     pub recommendations: &'a mut Grid,
     pub streaming: &'a mut StreamingSession,
+    pub streaming_coordinator: &'a mut crate::streaming::StreamingCoordinator,
 }
 
 pub trait View<T> {

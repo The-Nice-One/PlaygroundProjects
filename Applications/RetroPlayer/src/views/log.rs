@@ -33,6 +33,7 @@ impl View<ViewState<'_>> for LogView {
         handle_playlist_controls(
             state.playlist_dropdown,
             state.streaming,
+            state.streaming_coordinator,
             state.recommendations,
             state.player,
             state.song_list,

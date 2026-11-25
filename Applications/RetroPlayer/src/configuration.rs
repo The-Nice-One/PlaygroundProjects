@@ -17,6 +17,8 @@ songs_directory = \"\"
 song_directories = []
 # Automatically restore the last selected playlist directory on startup.
 restore_last_playlist = true
+# Automatically shuffle the playlist on startup and on playlist switch.
+preshuffle = false
 
 # Change 'false' to 'true' to enable Discord rich presence feature.
 discord_presence = false
@@ -31,6 +33,8 @@ accent = \"blue\"
 # Online recommendations + download feature (MusicBrainz/ListenBrainz/Last.fm -> yt-dlp).
 [streaming]
 enabled = true
+# Enable streaming mode: continuously downloads & inserts recommended tracks into playback queue.
+streaming_mode = false
 # How many recommended tracks to fetch per refresh.
 recommendations_per_fetch = 8
 # ListenBrainz LB Radio mode: \"easy\", \"medium\", or \"hard\" (controls how loosely
@@ -40,6 +44,8 @@ listenbrainz_mode = \"easy\"
 ytdlp_path = \"yt-dlp\"
 # Where downloaded tracks are saved. Leave blank to use songs_directory.
 download_directory = \"\"
+# Maximum number of downloaded recommendation songs to keep per playlist (0 to disable pruning).
+recommendations_cache_limit = 30
 
 # Lyrics fetching & embedding configuration.
 [lyrics]
@@ -99,10 +105,12 @@ pub struct ThemeTemplate {
     pub accent: String,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct StreamingTemplate {
     #[serde(default = "default_streaming_enabled")]
     pub enabled: bool,
+    #[serde(default)]
+    pub streaming_mode: bool,
     #[serde(default = "default_recommendations_per_fetch")]
     pub recommendations_per_fetch: usize,
     #[serde(default = "default_listenbrainz_mode")]
@@ -111,6 +119,22 @@ pub struct StreamingTemplate {
     pub ytdlp_path: String,
     #[serde(default)]
     pub download_directory: String,
+    #[serde(default = "default_recommendations_cache_limit")]
+    pub recommendations_cache_limit: usize,
+}
+
+impl Default for StreamingTemplate {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            streaming_mode: false,
+            recommendations_per_fetch: 8,
+            listenbrainz_mode: "easy".to_string(),
+            ytdlp_path: "yt-dlp".to_string(),
+            download_directory: String::new(),
+            recommendations_cache_limit: 30,
+        }
+    }
 }
 
 fn default_streaming_enabled() -> bool {
@@ -118,6 +142,9 @@ fn default_streaming_enabled() -> bool {
 }
 fn default_recommendations_per_fetch() -> usize {
     8
+}
+fn default_recommendations_cache_limit() -> usize {
+    30
 }
 fn default_listenbrainz_mode() -> String {
     "easy".to_string()
@@ -166,6 +193,8 @@ pub struct ConfigurationTemplate {
     pub song_directories: Vec<String>,
     #[serde(default = "default_restore_last_playlist")]
     pub restore_last_playlist: bool,
+    #[serde(default)]
+    pub preshuffle: bool,
     pub discord_presence: bool,
     pub theme: ThemeTemplate,
     #[serde(default)]
@@ -183,20 +212,24 @@ pub struct Theme {
 #[derive(Clone)]
 pub struct StreamingConfig {
     pub enabled: bool,
+    pub streaming_mode: bool,
     pub recommendations_per_fetch: usize,
     pub listenbrainz_mode: String,
     pub ytdlp_path: String,
     pub download_directory: String,
+    pub recommendations_cache_limit: usize,
 }
 
 impl From<StreamingTemplate> for StreamingConfig {
     fn from(value: StreamingTemplate) -> Self {
         StreamingConfig {
             enabled: value.enabled,
+            streaming_mode: value.streaming_mode,
             recommendations_per_fetch: value.recommendations_per_fetch,
             listenbrainz_mode: value.listenbrainz_mode,
             ytdlp_path: value.ytdlp_path,
             download_directory: value.download_directory,
+            recommendations_cache_limit: value.recommendations_cache_limit,
         }
     }
 }
@@ -205,10 +238,12 @@ impl std::default::Default for StreamingConfig {
     fn default() -> Self {
         StreamingConfig {
             enabled: true,
+            streaming_mode: false,
             recommendations_per_fetch: 8,
             listenbrainz_mode: "easy".to_string(),
             ytdlp_path: "yt-dlp".to_string(),
             download_directory: String::new(),
+            recommendations_cache_limit: 30,
         }
     }
 }
@@ -250,6 +285,7 @@ pub struct Configuration {
     pub songs_directory: String,
     pub song_directories: Vec<String>,
     pub restore_last_playlist: bool,
+    pub preshuffle: bool,
     pub discord_presence: bool,
     pub theme: Theme,
     pub streaming: StreamingConfig,
@@ -262,6 +298,7 @@ impl From<ConfigurationTemplate> for Configuration {
             songs_directory: value.songs_directory,
             song_directories: value.song_directories,
             restore_last_playlist: value.restore_last_playlist,
+            preshuffle: value.preshuffle,
             discord_presence: value.discord_presence,
             theme: Theme {
                 primary: color_from_string(value.theme.primary),
@@ -280,6 +317,7 @@ impl std::default::Default for Configuration {
             songs_directory: String::new(),
             song_directories: vec![],
             restore_last_playlist: true,
+            preshuffle: false,
             discord_presence: false,
             theme: Theme {
                 primary: Color::Reset,
@@ -312,4 +350,49 @@ pub fn save_last_playlist(path: String) -> Result<()> {
     let content = serde_json::to_string_pretty(&state)?;
     std::fs::write(state_path, content)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_configuration_template_defaults() {
+        let content = r#"
+            songs_directory = "C:/Music"
+            discord_presence = false
+            theme = { primary = "default", secondary = "dark-grey", accent = "blue" }
+        "#;
+        let config_tmpl: ConfigurationTemplate = toml::from_str(content).unwrap();
+        assert_eq!(config_tmpl.preshuffle, false);
+        assert_eq!(config_tmpl.streaming.streaming_mode, false);
+        assert_eq!(config_tmpl.streaming.recommendations_cache_limit, 30);
+
+        let config: Configuration = config_tmpl.into();
+        assert_eq!(config.preshuffle, false);
+        assert_eq!(config.streaming.streaming_mode, false);
+        assert_eq!(config.streaming.recommendations_cache_limit, 30);
+    }
+
+    #[test]
+    fn test_configuration_template_custom_values() {
+        let content = r#"
+            songs_directory = "C:/Music"
+            preshuffle = true
+            discord_presence = false
+            theme = { primary = "default", secondary = "dark-grey", accent = "blue" }
+            [streaming]
+            streaming_mode = true
+            recommendations_cache_limit = 50
+        "#;
+        let config_tmpl: ConfigurationTemplate = toml::from_str(content).unwrap();
+        assert_eq!(config_tmpl.preshuffle, true);
+        assert_eq!(config_tmpl.streaming.streaming_mode, true);
+        assert_eq!(config_tmpl.streaming.recommendations_cache_limit, 50);
+
+        let config: Configuration = config_tmpl.into();
+        assert_eq!(config.preshuffle, true);
+        assert_eq!(config.streaming.streaming_mode, true);
+        assert_eq!(config.streaming.recommendations_cache_limit, 50);
+    }
 }

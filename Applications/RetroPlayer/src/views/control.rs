@@ -41,10 +41,12 @@ impl View<ViewState<'_>> for ControlView {
             state.sound,
             state.song_list,
             state.control_panel,
+            state.is_navigating_previous,
         );
         handle_playlist_controls(
             state.playlist_dropdown,
             state.streaming,
+            state.streaming_coordinator,
             state.recommendations,
             state.player,
             state.song_list,
