@@ -86,6 +86,7 @@ pub fn artists_match(a: &str, b: &str) -> bool {
 #[derive(Clone)]
 pub struct StreamingConfigSnapshot {
     pub recommendations_per_fetch: usize,
+    pub pool_size: usize,
     pub listenbrainz_mode: String,
 }
 
@@ -435,7 +436,7 @@ pub fn generate_recommendations(
         return Ok(candidates);
     }
 
-    let total_recs = config.recommendations_per_fetch;
+    let total_recs = config.pool_size.max(config.recommendations_per_fetch);
 
     // Safety constraint: Only process up to the number of weights we have defined
     let active_artists: Vec<&String> = seed_artists

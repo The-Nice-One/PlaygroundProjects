@@ -14,4 +14,4 @@ pub use library::LibraryIndex;
 pub use lyrics::{SyncGranularity, TrackLyrics, fetch_best_lyrics};
 pub use recommend::{RecommendedTrack, StreamingConfigSnapshot};
 #[allow(unused_imports)]
-pub use session::{DownloadOrigin, StreamingEvent, StreamingSession};
+pub use session::{DownloadOrigin, RefreshMode, StreamingEvent, StreamingSession};

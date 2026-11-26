@@ -203,7 +203,14 @@ pub fn handle_audio_controls(
     }
 }
 
-pub fn trigger_recommendation_refresh(streaming: &mut StreamingSession, player: &PlayerSession) {
+pub fn trigger_recommendation_refresh(
+    streaming: &mut StreamingSession,
+    player: &PlayerSession,
+    mode: crate::streaming::RefreshMode,
+) {
+    if mode == crate::streaming::RefreshMode::UiAndPool {
+        streaming.ui_refresh_pending = true;
+    }
     if streaming.refreshing {
         return;
     }
@@ -212,7 +219,12 @@ pub fn trigger_recommendation_refresh(streaming: &mut StreamingSession, player: 
     let artist_count = library.artist_count();
 
     if artist_count == 0 {
-        streaming.send_event(crate::streaming::StreamingEvent::RecommendationsReady(Vec::new()));
+        streaming.send_event(crate::streaming::StreamingEvent::RecommendationsReady {
+            generation: streaming.refresh_generation,
+            tracks: Vec::new(),
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
         return;
     }
 
@@ -224,12 +236,14 @@ pub fn trigger_recommendation_refresh(streaming: &mut StreamingSession, player: 
         )),
     );
 
+    let per_fetch = configuration!().streaming.recommendations_per_fetch;
     let config = StreamingConfigSnapshot {
-        recommendations_per_fetch: configuration!().streaming.recommendations_per_fetch,
+        recommendations_per_fetch: per_fetch,
+        pool_size: per_fetch.max(40),
         listenbrainz_mode: configuration!().streaming.listenbrainz_mode.clone(),
     };
     let mbid_cache_path = PROJECT_DIRECTORY.data_dir().join("mbid_cache.json");
-    streaming.refresh_recommendations(library, config, mbid_cache_path);
+    streaming.refresh_recommendations(library, config, mbid_cache_path, mode);
 }
 
 pub fn handle_search_controls(
@@ -316,10 +330,43 @@ pub fn handle_streaming_controls(
             == State::Active
         {
             if is_refresh_row {
-                streaming.display_mode = crate::streaming::session::StreamingDisplayMode::Recommendations;
-                crate::builders::set_recommendations_loading(recommendations);
-                streaming.recommendations.clear();
-                trigger_recommendation_refresh(streaming, player);
+                let was_searching = matches!(
+                    streaming.display_mode,
+                    crate::streaming::session::StreamingDisplayMode::Search { .. }
+                );
+                streaming.display_mode =
+                    crate::streaming::session::StreamingDisplayMode::Recommendations;
+                let limit = configuration!().streaming.recommendations_per_fetch;
+
+                if let Some(batch) = streaming.take_next_ui_batch(limit) {
+                    crate::builders::update_recommendation_labels(recommendations, &batch);
+                    if streaming.unshown_pool.is_empty() {
+                        trigger_recommendation_refresh(
+                            streaming,
+                            player,
+                            crate::streaming::RefreshMode::PoolOnly,
+                        );
+                    }
+                } else {
+                    if was_searching {
+                        if let Some(restored) = streaming.restore_pool_batch_if_available(limit) {
+                            crate::builders::update_recommendation_labels(
+                                recommendations,
+                                &restored,
+                            );
+                        } else {
+                            crate::builders::set_recommendations_loading(recommendations);
+                            streaming.recommendations.clear();
+                        }
+                    } else if streaming.recommendations.is_empty() {
+                        crate::builders::set_recommendations_loading(recommendations);
+                    }
+                    trigger_recommendation_refresh(
+                        streaming,
+                        player,
+                        crate::streaming::RefreshMode::UiAndPool,
+                    );
+                }
             } else if let Some(track) = streaming.recommendations.get(i).cloned() {
                 let config = configuration!();
                 let download_dir = if config.streaming.download_directory.is_empty() {
@@ -399,19 +446,19 @@ pub fn handle_playlist_controls(
     }
 
     player.load_playlist(&path);
-    streaming.display_mode = crate::streaming::session::StreamingDisplayMode::Recommendations;
-    streaming.last_manual_anchor = None;
-    streaming_coordinator.is_downloading = false;
-    streaming_coordinator.session_played.clear();
-    streaming_coordinator.candidate_pool.clear();
+    streaming.invalidate_and_clear_for_playlist_switch();
+    streaming_coordinator.reset();
     if configuration!().preshuffle {
         player.shuffle();
     }
     update_song_list(song_list, player);
 
     set_recommendations_loading(recommendations);
-    streaming.recommendations.clear();
-    trigger_recommendation_refresh(streaming, player);
+    trigger_recommendation_refresh(
+        streaming,
+        player,
+        crate::streaming::RefreshMode::UiAndPool,
+    );
 
     if configuration!().restore_last_playlist
         && let Err(e) = save_last_playlist(path)

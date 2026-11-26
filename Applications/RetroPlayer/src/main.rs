@@ -172,10 +172,16 @@ fn main() {
     let mut recommendations =
         new_recommendations_grid(configuration!().streaming.recommendations_per_fetch);
     let mut playlist_dropdown = PlaylistDropdown::new(playlist_paths, selected_playlist);
-    let mut streaming_session = streaming::StreamingSession::new();
+    let mut streaming_session = streaming::StreamingSession::with_batch_size(
+        configuration!().streaming.recommendations_per_fetch,
+    );
     let mut streaming_coordinator = streaming::StreamingCoordinator::new();
     if configuration!().streaming.enabled {
-        trigger_recommendation_refresh(&mut streaming_session, &player);
+        trigger_recommendation_refresh(
+            &mut streaming_session,
+            &player,
+            streaming::RefreshMode::UiAndPool,
+        );
     }
 
     let mut null_component = retro_engine::components::Null::disabled();
@@ -188,10 +194,17 @@ fn main() {
 
     let mut running = true;
     let mut is_navigating_previous = false;
-    let mut last_topup_refresh_attempt: Option<std::time::Instant> = None;
+    let mut last_topup_refresh_attempt: Option<std::time::Instant> =
+        Some(std::time::Instant::now());
+    let mut last_refresh_generation = streaming_session.refresh_generation;
     while running {
         terminal.poll(100);
         terminal.top();
+
+        if streaming_session.refresh_generation != last_refresh_generation {
+            last_refresh_generation = streaming_session.refresh_generation;
+            last_topup_refresh_attempt = Some(std::time::Instant::now());
+        }
 
         if manager.main_track().num_sounds() == 0 && !player.songs.is_empty() {
             if is_navigating_previous {
@@ -212,7 +225,11 @@ fn main() {
 
                 if configuration!().streaming.streaming_mode {
                     if streaming_coordinator.on_song_played() {
-                        trigger_recommendation_refresh(&mut streaming_session, &player);
+                        trigger_recommendation_refresh(
+                            &mut streaming_session,
+                            &player,
+                            streaming::RefreshMode::PoolOnly,
+                        );
                     }
                 }
             }
@@ -305,13 +322,18 @@ fn main() {
         // Handle streaming events
         for event in streaming_session.poll() {
             match event {
-                StreamingEvent::RecommendationsReady(tracks) => {
+                StreamingEvent::RecommendationsReady {
+                    tracks,
+                    ui_tracks,
+                    update_ui,
+                    ..
+                } => {
                     let library = crate::streaming::LibraryIndex::from_song_keys(&player.songs);
                     let seed_artists = library.seed_artists(8);
                     streaming_coordinator.add_candidates(tracks.clone(), &seed_artists);
 
-                    if streaming_session.display_mode == crate::streaming::session::StreamingDisplayMode::Recommendations {
-                        update_recommendation_labels(&mut recommendations, &tracks);
+                    if update_ui {
+                        update_recommendation_labels(&mut recommendations, &ui_tracks);
                     }
                     if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
                         if tracks.is_empty() {
@@ -324,15 +346,21 @@ fn main() {
                         }
                     }
                 }
-                StreamingEvent::RecommendationsFailed(err) => {
+                StreamingEvent::RecommendationsFailed {
+                    error,
+                    ui_tracks,
+                    update_ui,
+                    ..
+                } => {
+                    if update_ui {
+                        update_recommendation_labels(&mut recommendations, &ui_tracks);
+                    }
                     if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
-                        entry.fail(format!("Streaming error: {}", err));
+                        entry.fail(format!("Streaming error: {}", error));
                     }
                 }
                 StreamingEvent::SearchResultsReady(query, tracks) => {
-                    if matches!(&streaming_session.display_mode, crate::streaming::session::StreamingDisplayMode::Search { query: q } if q == &query) {
-                        update_recommendation_labels(&mut recommendations, &tracks);
-                    }
+                    update_recommendation_labels(&mut recommendations, &tracks);
                     if let Some(entry) = logger!().get_entry(EntryId::Streaming) {
                         if tracks.is_empty() {
                             entry.fail(format!("Found 0 results for '{}'", query));
@@ -467,7 +495,11 @@ fn main() {
                         let has_artists = crate::streaming::LibraryIndex::from_song_keys(&player.songs).artist_count() > 0;
                         if can_refresh && has_artists {
                             last_topup_refresh_attempt = Some(std::time::Instant::now());
-                            trigger_recommendation_refresh(&mut streaming_session, &player);
+                            trigger_recommendation_refresh(
+                                &mut streaming_session,
+                                &player,
+                                streaming::RefreshMode::PoolOnly,
+                            );
                         }
                     }
                 }

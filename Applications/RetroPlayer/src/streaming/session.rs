@@ -2,6 +2,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
+use rand::seq::SliceRandom;
+
 use super::library::LibraryIndex;
 use super::recommend::{
     MbRateLimiter, RecommendedTrack, StreamingConfigSnapshot, artists_match,
@@ -24,6 +26,14 @@ pub enum StreamingDisplayMode {
     Search { query: String },
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RefreshMode {
+    /// Populates Streaming View UI once ready + adds to global/coordinator pools.
+    UiAndPool,
+    /// Silent background refresh (streaming cadence or post-refresh preload). Never alters UI list.
+    PoolOnly,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DownloadOrigin {
     Manual {
@@ -36,8 +46,18 @@ pub enum DownloadOrigin {
 }
 
 pub enum StreamingEvent {
-    RecommendationsReady(Vec<RecommendedTrack>),
-    RecommendationsFailed(String),
+    RecommendationsReady {
+        generation: u64,
+        tracks: Vec<RecommendedTrack>,
+        ui_tracks: Vec<RecommendedTrack>,
+        update_ui: bool,
+    },
+    RecommendationsFailed {
+        generation: u64,
+        error: String,
+        ui_tracks: Vec<RecommendedTrack>,
+        update_ui: bool,
+    },
     SearchResultsReady(String, Vec<RecommendedTrack>),
     SearchResultsFailed(String, String),
     DownloadStarted(String),
@@ -55,10 +75,15 @@ pub enum StreamingEvent {
 /// iteration exactly like the existing Discord-presence/media-controls channel.
 pub struct StreamingSession {
     pub recommendations: Vec<RecommendedTrack>,
+    pub global_pool: Vec<RecommendedTrack>,
+    pub unshown_pool: Vec<RecommendedTrack>,
     pub in_flight: HashSet<String>,
     pub refreshing: bool,
     pub searching: bool,
     pub display_mode: StreamingDisplayMode,
+    pub ui_refresh_pending: bool,
+    pub refresh_generation: u64,
+    pub ui_batch_size: usize,
     pub last_manual_anchor: Option<String>,
     tx: Sender<StreamingEvent>,
     rx: Receiver<StreamingEvent>,
@@ -66,13 +91,22 @@ pub struct StreamingSession {
 
 impl StreamingSession {
     pub fn new() -> Self {
+        Self::with_batch_size(8)
+    }
+
+    pub fn with_batch_size(ui_batch_size: usize) -> Self {
         let (tx, rx) = channel();
         Self {
             recommendations: Vec::new(),
+            global_pool: Vec::new(),
+            unshown_pool: Vec::new(),
             in_flight: HashSet::new(),
             refreshing: false,
             searching: false,
             display_mode: StreamingDisplayMode::Recommendations,
+            ui_refresh_pending: false,
+            refresh_generation: 0,
+            ui_batch_size: ui_batch_size.max(1),
             last_manual_anchor: None,
             tx,
             rx,
@@ -81,6 +115,75 @@ impl StreamingSession {
 
     pub fn send_event(&self, event: StreamingEvent) {
         let _ = self.tx.send(event);
+    }
+
+    /// Invalidates any in-flight recommendation refreshes and clears all per-playlist pools.
+    pub fn invalidate_and_clear_for_playlist_switch(&mut self) {
+        self.refresh_generation += 1;
+        self.refreshing = false;
+        self.ui_refresh_pending = false;
+        self.display_mode = StreamingDisplayMode::Recommendations;
+        self.last_manual_anchor = None;
+        self.recommendations.clear();
+        self.global_pool.clear();
+        self.unshown_pool.clear();
+    }
+
+    fn merge_into_pools(&mut self, incoming: &[RecommendedTrack]) {
+        for track in incoming {
+            let song_name = track.song_name();
+            if !self
+                .global_pool
+                .iter()
+                .any(|existing| existing.song_name() == song_name)
+            {
+                self.global_pool.push(track.clone());
+                self.unshown_pool.push(track.clone());
+            }
+        }
+    }
+
+    /// Draws up to `count` unseen tracks from `unshown_pool` (padding short tails from `global_pool`
+    /// so existing lists never regress into partial `N/A` slots) and updates `self.recommendations`.
+    pub fn take_next_ui_batch(&mut self, count: usize) -> Option<Vec<RecommendedTrack>> {
+        if self.unshown_pool.is_empty() || count == 0 {
+            return None;
+        }
+
+        let mut rng = rand::rng();
+        self.unshown_pool.shuffle(&mut rng);
+        let take_n = count.min(self.unshown_pool.len());
+        let mut batch: Vec<RecommendedTrack> = self.unshown_pool.drain(..take_n).collect();
+
+        if batch.len() < count && self.global_pool.len() > batch.len() {
+            let mut fallback: Vec<RecommendedTrack> = self
+                .global_pool
+                .iter()
+                .filter(|t| !batch.iter().any(|b| b.song_name() == t.song_name()))
+                .cloned()
+                .collect();
+            fallback.shuffle(&mut rng);
+            let needed = count - batch.len();
+            batch.extend(fallback.into_iter().take(needed));
+        }
+
+        self.recommendations = batch.clone();
+        self.ui_refresh_pending = false;
+        Some(batch)
+    }
+
+    /// Shuffles up to `count` tracks from `global_pool` into `self.recommendations` as a fallback
+    /// when returning to recommendations without unseen tracks left.
+    pub fn restore_pool_batch_if_available(&mut self, count: usize) -> Option<Vec<RecommendedTrack>> {
+        if self.global_pool.is_empty() || count == 0 {
+            return None;
+        }
+        let mut rng = rand::rng();
+        let mut batch = self.global_pool.clone();
+        batch.shuffle(&mut rng);
+        batch.truncate(count);
+        self.recommendations = batch.clone();
+        Some(batch)
     }
 
     /// Spawns a background thread that builds fresh recommendations from the given
@@ -92,11 +195,16 @@ impl StreamingSession {
         library: LibraryIndex,
         config: StreamingConfigSnapshot,
         mbid_cache_path: PathBuf,
+        mode: RefreshMode,
     ) {
+        if mode == RefreshMode::UiAndPool {
+            self.ui_refresh_pending = true;
+        }
         if self.refreshing {
             return;
         }
         self.refreshing = true;
+        let generation = self.refresh_generation;
 
         let tx = self.tx.clone();
         std::thread::spawn(move || {
@@ -104,8 +212,18 @@ impl StreamingSession {
             let result =
                 generate_recommendations(&library, &seed_artists, &config, &mbid_cache_path);
             let event = match result {
-                Ok(tracks) => StreamingEvent::RecommendationsReady(tracks),
-                Err(e) => StreamingEvent::RecommendationsFailed(e.to_string()),
+                Ok(tracks) => StreamingEvent::RecommendationsReady {
+                    generation,
+                    tracks,
+                    ui_tracks: Vec::new(),
+                    update_ui: false,
+                },
+                Err(e) => StreamingEvent::RecommendationsFailed {
+                    generation,
+                    error: e.to_string(),
+                    ui_tracks: Vec::new(),
+                    update_ui: false,
+                },
             };
             let _ = tx.send(event);
         });
@@ -117,6 +235,7 @@ impl StreamingSession {
         self.display_mode = StreamingDisplayMode::Search {
             query: query.clone(),
         };
+        self.ui_refresh_pending = false;
         if self.searching {
             return;
         }
@@ -281,40 +400,111 @@ impl StreamingSession {
     pub fn poll(&mut self) -> Vec<StreamingEvent> {
         let mut events = Vec::new();
         while let Ok(event) = self.rx.try_recv() {
-            match &event {
-                StreamingEvent::RecommendationsReady(tracks) => {
-                    self.refreshing = false;
-                    if self.display_mode == StreamingDisplayMode::Recommendations {
-                        self.recommendations = tracks.clone();
+            match event {
+                StreamingEvent::RecommendationsReady {
+                    generation, tracks, ..
+                } => {
+                    if generation != self.refresh_generation {
+                        continue;
                     }
-                }
-                StreamingEvent::RecommendationsFailed(_) => {
                     self.refreshing = false;
+                    self.merge_into_pools(&tracks);
+
+                    let should_update_ui = self.display_mode == StreamingDisplayMode::Recommendations
+                        && self.ui_refresh_pending;
+                    let mut ui_tracks = Vec::new();
+                    if should_update_ui {
+                        self.ui_refresh_pending = false;
+                        if let Some(batch) = self.take_next_ui_batch(self.ui_batch_size) {
+                            ui_tracks = batch;
+                        } else if !self.recommendations.is_empty() {
+                            ui_tracks = self.recommendations.clone();
+                        } else if let Some(restored) =
+                            self.restore_pool_batch_if_available(self.ui_batch_size)
+                        {
+                            ui_tracks = restored;
+                        }
+                    }
+
+                    events.push(StreamingEvent::RecommendationsReady {
+                        generation,
+                        tracks,
+                        ui_tracks,
+                        update_ui: should_update_ui,
+                    });
+                }
+                StreamingEvent::RecommendationsFailed {
+                    generation, error, ..
+                } => {
+                    if generation != self.refresh_generation {
+                        continue;
+                    }
+                    self.refreshing = false;
+
+                    let should_update_ui = self.display_mode == StreamingDisplayMode::Recommendations
+                        && self.ui_refresh_pending;
+                    let mut ui_tracks = Vec::new();
+                    if should_update_ui {
+                        self.ui_refresh_pending = false;
+                        if !self.recommendations.is_empty() {
+                            ui_tracks = self.recommendations.clone();
+                        } else if let Some(restored) =
+                            self.restore_pool_batch_if_available(self.ui_batch_size)
+                        {
+                            ui_tracks = restored;
+                        }
+                    }
+
+                    events.push(StreamingEvent::RecommendationsFailed {
+                        generation,
+                        error,
+                        ui_tracks,
+                        update_ui: should_update_ui,
+                    });
                 }
                 StreamingEvent::SearchResultsReady(query, tracks) => {
                     self.searching = false;
-                    if matches!(&self.display_mode, StreamingDisplayMode::Search { query: q } if q == query) {
+                    if matches!(&self.display_mode, StreamingDisplayMode::Search { query: q } if q == &query)
+                    {
                         self.recommendations = tracks.clone();
+                        events.push(StreamingEvent::SearchResultsReady(query, tracks));
                     }
                 }
-                StreamingEvent::SearchResultsFailed(_, _) => {
+                StreamingEvent::SearchResultsFailed(query, err) => {
                     self.searching = false;
+                    if matches!(&self.display_mode, StreamingDisplayMode::Search { query: q } if q == &query)
+                    {
+                        events.push(StreamingEvent::SearchResultsFailed(query, err));
+                    }
                 }
-                StreamingEvent::DownloadComplete { in_flight_key, .. } => {
-                    self.in_flight.remove(in_flight_key);
+                StreamingEvent::DownloadComplete {
+                    in_flight_key,
+                    song_key,
+                    path,
+                    origin,
+                } => {
+                    self.in_flight.remove(&in_flight_key);
                     if self.in_flight.is_empty() {
                         self.last_manual_anchor = None;
                     }
+                    events.push(StreamingEvent::DownloadComplete {
+                        in_flight_key,
+                        song_key,
+                        path,
+                        origin,
+                    });
                 }
-                StreamingEvent::DownloadFailed(key, _) => {
-                    self.in_flight.remove(key);
+                StreamingEvent::DownloadFailed(key, err) => {
+                    self.in_flight.remove(&key);
                     if self.in_flight.is_empty() {
                         self.last_manual_anchor = None;
                     }
+                    events.push(StreamingEvent::DownloadFailed(key, err));
                 }
-                StreamingEvent::DownloadStarted(_) => {}
+                StreamingEvent::DownloadStarted(key) => {
+                    events.push(StreamingEvent::DownloadStarted(key));
+                }
             }
-            events.push(event);
         }
         events
     }
@@ -393,14 +583,22 @@ mod tests {
         };
 
         // Emit RecommendationsReady event while in Search mode
-        session.send_event(StreamingEvent::RecommendationsReady(vec![track.clone()]));
+        session.send_event(StreamingEvent::RecommendationsReady {
+            generation: 0,
+            tracks: vec![track.clone()],
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
         let _ = session.poll();
 
         // Visible recommendations must NOT be overwritten by recommendations event!
         assert!(session.recommendations.is_empty());
 
         // Now emit SearchResultsReady for the matching query
-        session.send_event(StreamingEvent::SearchResultsReady("rock".to_string(), vec![track.clone()]));
+        session.send_event(StreamingEvent::SearchResultsReady(
+            "rock".to_string(),
+            vec![track.clone()],
+        ));
         let _ = session.poll();
 
         // Search results must populate recommendations
@@ -424,11 +622,182 @@ mod tests {
         };
 
         // Late response arrives for query_a
-        session.send_event(StreamingEvent::SearchResultsReady("query_a".to_string(), vec![track_a]));
-        let _ = session.poll();
+        session.send_event(StreamingEvent::SearchResultsReady(
+            "query_a".to_string(),
+            vec![track_a],
+        ));
+        let events = session.poll();
 
         // Late response for old query must be dropped
+        assert!(events.is_empty());
         assert!(session.recommendations.is_empty());
+    }
+
+    fn dummy_track(artist: &str, title: &str) -> RecommendedTrack {
+        RecommendedTrack {
+            artists: vec![artist.to_string()],
+            title: title.to_string(),
+            source_artist: artist.to_string(),
+            recording_mbid: None,
+            video_id: None,
+        }
+    }
+
+    #[test]
+    fn test_recommendations_protection_blocks_background_refresh() {
+        let mut session = StreamingSession::with_batch_size(2);
+        session.ui_refresh_pending = true;
+
+        let initial = vec![
+            dummy_track("A", "1"),
+            dummy_track("A", "2"),
+            dummy_track("A", "3"),
+        ];
+        session.send_event(StreamingEvent::RecommendationsReady {
+            generation: 0,
+            tracks: initial,
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
+        let events = session.poll();
+        assert_eq!(events.len(), 1);
+        assert!(matches!(
+            &events[0],
+            StreamingEvent::RecommendationsReady { update_ui: true, ui_tracks, .. } if ui_tracks.len() == 2
+        ));
+        let initial_shown = session.recommendations.clone();
+        assert_eq!(initial_shown.len(), 2);
+        assert!(!session.ui_refresh_pending);
+
+        // Background PoolOnly refresh arrives while ui_refresh_pending is false
+        let bg = vec![dummy_track("B", "4"), dummy_track("B", "5")];
+        session.send_event(StreamingEvent::RecommendationsReady {
+            generation: 0,
+            tracks: bg,
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
+        let bg_events = session.poll();
+        assert!(matches!(
+            &bg_events[0],
+            StreamingEvent::RecommendationsReady { update_ui: false, .. }
+        ));
+        // Displayed recommendations stayed locked, while pools gained the new tracks
+        assert_eq!(session.recommendations, initial_shown);
+        assert_eq!(session.global_pool.len(), 5);
+        assert_eq!(session.unshown_pool.len(), 3);
+    }
+
+    #[test]
+    fn test_pool_first_refresh_and_padding() {
+        let mut session = StreamingSession::with_batch_size(3);
+        session.ui_refresh_pending = true;
+
+        // Fetch 4 tracks total -> 3 displayed on initial fill, 1 left in unshown_pool
+        let tracks = vec![
+            dummy_track("A", "1"),
+            dummy_track("A", "2"),
+            dummy_track("A", "3"),
+            dummy_track("A", "4"),
+        ];
+        session.send_event(StreamingEvent::RecommendationsReady {
+            generation: 0,
+            tracks,
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
+        let _ = session.poll();
+        assert_eq!(session.recommendations.len(), 3);
+        assert_eq!(session.unshown_pool.len(), 1);
+
+        // Explicit Refresh draws the 1 unshown track + pads 2 from global_pool so there are no N/A slots
+        let batch = session.take_next_ui_batch(3).unwrap();
+        assert_eq!(batch.len(), 3);
+        assert!(batch.iter().any(|t| t.title == "4"));
+        assert!(session.unshown_pool.is_empty());
+    }
+
+    #[test]
+    fn test_empty_or_failed_refresh_preserves_existing_list() {
+        let mut session = StreamingSession::with_batch_size(2);
+        session.ui_refresh_pending = true;
+
+        session.send_event(StreamingEvent::RecommendationsReady {
+            generation: 0,
+            tracks: vec![dummy_track("A", "1"), dummy_track("A", "2")],
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
+        let _ = session.poll();
+        let locked_list = session.recommendations.clone();
+
+        // Explicit UiAndPool refresh runs when pool is empty, and returns 0 tracks
+        session.ui_refresh_pending = true;
+        session.send_event(StreamingEvent::RecommendationsReady {
+            generation: 0,
+            tracks: Vec::new(),
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
+        let empty_events = session.poll();
+        assert!(matches!(
+            &empty_events[0],
+            StreamingEvent::RecommendationsReady { update_ui: true, ui_tracks, .. } if ui_tracks == &locked_list
+        ));
+        assert_eq!(session.recommendations, locked_list);
+
+        // Now API errors instead
+        session.ui_refresh_pending = true;
+        session.send_event(StreamingEvent::RecommendationsFailed {
+            generation: 0,
+            error: "rate limit".to_string(),
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
+        let err_events = session.poll();
+        assert!(matches!(
+            &err_events[0],
+            StreamingEvent::RecommendationsFailed { update_ui: true, ui_tracks, .. } if ui_tracks == &locked_list
+        ));
+        assert_eq!(session.recommendations, locked_list);
+    }
+
+    #[test]
+    fn test_playlist_switch_invalidates_generation_and_clears_pools() {
+        let mut session = StreamingSession::with_batch_size(2);
+        session.ui_refresh_pending = true;
+        session.refreshing = true;
+
+        session.send_event(StreamingEvent::RecommendationsReady {
+            generation: 0,
+            tracks: vec![dummy_track("Old", "1"), dummy_track("Old", "2")],
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
+        let _ = session.poll();
+        assert_eq!(session.recommendations.len(), 2);
+
+        // User switches playlist while a gen-0 refresh was still in flight
+        session.refreshing = true;
+        session.invalidate_and_clear_for_playlist_switch();
+        assert_eq!(session.refresh_generation, 1);
+        assert!(!session.refreshing);
+        assert!(session.recommendations.is_empty());
+        assert!(session.global_pool.is_empty());
+        assert!(session.unshown_pool.is_empty());
+
+        // Stale gen-0 result arrives from the previous playlist -> must be completely dropped
+        session.ui_refresh_pending = true;
+        session.send_event(StreamingEvent::RecommendationsReady {
+            generation: 0,
+            tracks: vec![dummy_track("Old", "Stale")],
+            ui_tracks: Vec::new(),
+            update_ui: false,
+        });
+        let events = session.poll();
+        assert!(events.is_empty());
+        assert!(session.recommendations.is_empty());
+        assert!(session.global_pool.is_empty());
     }
 }
 

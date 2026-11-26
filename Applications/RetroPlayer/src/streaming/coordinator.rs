@@ -100,6 +100,14 @@ impl StreamingCoordinator {
             false
         }
     }
+
+    /// Resets all coordinator state on playlist switch.
+    pub fn reset(&mut self) {
+        self.candidate_pool.clear();
+        self.session_played.clear();
+        self.songs_played_since_refresh = 0;
+        self.is_downloading = false;
+    }
 }
 
 #[cfg(test)]
@@ -191,5 +199,30 @@ mod tests {
         // Track was already played this session, so it should be ignored!
         assert_eq!(coordinator.candidate_pool.len(), 0);
         assert!(coordinator.pick_candidate(|_| false).is_none());
+    }
+
+    #[test]
+    fn test_reset_clears_all_state() {
+        let mut coordinator = StreamingCoordinator::default();
+        let seeds = vec!["Daft Punk".to_string()];
+        let tracks = vec![
+            RecommendedTrack {
+                artists: vec!["Daft Punk".into()],
+                title: "One More Time".into(),
+                source_artist: "Daft Punk".into(),
+                recording_mbid: None,
+                video_id: None,
+            },
+        ];
+        coordinator.add_candidates(tracks, &seeds);
+        coordinator.mark_played("Played Track");
+        coordinator.on_song_played();
+        coordinator.is_downloading = true;
+
+        coordinator.reset();
+        assert!(coordinator.candidate_pool.is_empty());
+        assert!(coordinator.session_played.is_empty());
+        assert_eq!(coordinator.songs_played_since_refresh, 0);
+        assert!(!coordinator.is_downloading);
     }
 }
