@@ -2,7 +2,8 @@ use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-const USER_AGENT: &str = "RetroPlayer/0.1.0 (https://github.com/The-Nice-One/PlaygroundProjects)";
+use super::http::{USER_AGENT, http_agent};
+
 const REQUEST_TIMEOUT_SECS: u64 = 6;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -198,7 +199,8 @@ fn fetch_lrclib_get(
     album: Option<&str>,
     duration: Option<f64>,
 ) -> Option<TrackLyrics> {
-    let mut req = ureq::get("https://lrclib.net/api/get")
+    let mut req = http_agent()
+        .get("https://lrclib.net/api/get")
         .set("User-Agent", USER_AGENT)
         .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
         .query("artist_name", artist)
@@ -219,7 +221,8 @@ fn fetch_lrclib_get(
 /// Queries LRCLIB's search endpoint as a fallback.
 fn fetch_lrclib_search(artist: &str, title: &str) -> Option<TrackLyrics> {
     let query = format!("{} {}", artist, title);
-    let resp: Vec<LrclibRecord> = ureq::get("https://lrclib.net/api/search")
+    let resp: Vec<LrclibRecord> = http_agent()
+        .get("https://lrclib.net/api/search")
         .set("User-Agent", USER_AGENT)
         .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
         .query("q", &query)
@@ -332,7 +335,8 @@ struct LrcmuxWordItem {
 
 /// Queries Lrcmux public aggregator for word-level and line-level lyrics.
 fn fetch_lrcmux(artist: &str, title: &str) -> Option<TrackLyrics> {
-    let resp: LrcmuxResponse = ureq::get("https://api.lrcmux.dev/get")
+    let resp: LrcmuxResponse = http_agent()
+        .get("https://api.lrcmux.dev/get")
         .set("User-Agent", USER_AGENT)
         .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
         .query("artist", artist)

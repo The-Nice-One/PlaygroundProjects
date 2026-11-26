@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use super::http::{USER_AGENT, call_with_retry};
 use super::library::LibraryIndex;
 
 /// A candidate recommendation, always backed by a real MusicBrainz/ListenBrainz/
@@ -90,9 +91,6 @@ pub struct StreamingConfigSnapshot {
     pub listenbrainz_mode: String,
 }
 
-const USER_AGENT: &str =
-    "RetroPlayer/0.1 (https://github.com/The-Nice-One/PlaygroundProjects; your-email@example.com)";
-
 // MusicBrainz: artist name -> MBID, with an on-disk cache (avoids re-resolving
 // the same artist on every refresh) and a simple rate limiter (MusicBrainz asks
 // for at most 1 request/second from unauthenticated clients).
@@ -115,6 +113,55 @@ impl MbRateLimiter {
             }
         }
         self.last = Some(Instant::now());
+    }
+}
+
+/// Adaptive ListenBrainz rate limiter respecting `X-RateLimit-Remaining` and
+/// `X-RateLimit-Reset-In` headers alongside gentle request pacing.
+pub struct LbRateLimiter {
+    last: Option<Instant>,
+    paused_until: Option<Instant>,
+}
+
+impl LbRateLimiter {
+    pub fn new() -> Self {
+        Self {
+            last: None,
+            paused_until: None,
+        }
+    }
+
+    pub fn wait(&mut self) {
+        if let Some(until) = self.paused_until.take() {
+            let now = Instant::now();
+            if until > now {
+                std::thread::sleep(until - now);
+            }
+        }
+        if let Some(last) = self.last {
+            let elapsed = last.elapsed();
+            let min_interval = Duration::from_millis(150);
+            if elapsed < min_interval {
+                std::thread::sleep(min_interval - elapsed);
+            }
+        }
+        self.last = Some(Instant::now());
+    }
+
+    pub fn update_from_response(&mut self, resp: &ureq::Response) {
+        let remaining = resp
+            .header("X-RateLimit-Remaining")
+            .and_then(|v| v.trim().parse::<u32>().ok());
+        if let Some(rem) = remaining {
+            if rem <= 2 {
+                let reset_secs = resp
+                    .header("X-RateLimit-Reset-In")
+                    .and_then(|v| v.trim().parse::<u64>().ok())
+                    .unwrap_or(1)
+                    .clamp(1, 5);
+                self.paused_until = Some(Instant::now() + Duration::from_secs(reset_secs));
+            }
+        }
     }
 }
 
@@ -178,16 +225,18 @@ pub fn resolve_artist_mbid(
     limiter.wait();
 
     let query = format!("artist:\"{}\"", lucene_escape(artist_name));
-    let response: MbArtistSearchResponse = ureq::get("https://musicbrainz.org/ws/2/artist")
-        .set("User-Agent", USER_AGENT)
-        .query("query", &query)
-        .query("fmt", "json")
-        .call()
-        .map_err(|e| {
-            warn!("MusicBrainz API error for {}: {}", artist_name, e);
-            e
-        })?
-        .into_json()?;
+    let response: MbArtistSearchResponse = call_with_retry(|agent| {
+        agent
+            .get("https://musicbrainz.org/ws/2/artist")
+            .set("User-Agent", USER_AGENT)
+            .query("query", &query)
+            .query("fmt", "json")
+    })
+    .map_err(|e| {
+        warn!("MusicBrainz API error for {}: {}", artist_name, e);
+        e
+    })?
+    .into_json()?;
 
     let best = response
         .artists
@@ -257,16 +306,18 @@ pub fn lookup_recording_metadata(
             lucene_escape(a)
         );
 
-        let response: MbRecordingResponse = ureq::get("https://musicbrainz.org/ws/2/recording")
-            .set("User-Agent", USER_AGENT)
-            .timeout(std::time::Duration::from_secs(3))
-            .query("query", &query)
-            .query("fmt", "json")
-            .query("limit", "3")
-            .call()
-            .ok()?
-            .into_json()
-            .ok()?;
+        let response: MbRecordingResponse = call_with_retry(|agent| {
+            agent
+                .get("https://musicbrainz.org/ws/2/recording")
+                .set("User-Agent", USER_AGENT)
+                .timeout(std::time::Duration::from_secs(3))
+                .query("query", &query)
+                .query("fmt", "json")
+                .query("limit", "3")
+        })
+        .ok()?
+        .into_json()
+        .ok()?;
 
         let best = response.recordings.into_iter().next()?;
         let score = mb_recording_score_as_u32(&best.score);
@@ -321,23 +372,27 @@ pub fn fetch_lb_radio_for_artist(
     mode: &str,
     max_similar_artists: u32,
     max_recordings_per_artist: u32,
+    lb_limiter: &mut LbRateLimiter,
 ) -> anyhow::Result<Vec<(String, String)>> {
+    lb_limiter.wait();
     let url = format!(
         "https://api.listenbrainz.org/1/lb-radio/artist/{}",
         seed_mbid
     );
-    let response: LbRadioArtistResponse = ureq::get(&url)
-        .set("User-Agent", USER_AGENT)
-        .query("mode", mode)
-        .query("max_similar_artists", &max_similar_artists.to_string())
-        .query(
-            "max_recordings_per_artist",
-            &max_recordings_per_artist.to_string(),
-        )
-        .query("pop_begin", "0")
-        .query("pop_end", "100")
-        .call()?
-        .into_json()?;
+    let max_sim = max_similar_artists.to_string();
+    let max_rec = max_recordings_per_artist.to_string();
+    let resp = call_with_retry(|agent| {
+        agent
+            .get(&url)
+            .set("User-Agent", USER_AGENT)
+            .query("mode", mode)
+            .query("max_similar_artists", &max_sim)
+            .query("max_recordings_per_artist", &max_rec)
+            .query("pop_begin", "0")
+            .query("pop_end", "100")
+    })?;
+    lb_limiter.update_from_response(&resp);
+    let response: LbRadioArtistResponse = resp.into_json()?;
 
     let mut pairs = Vec::new();
     for entries in response.values() {
@@ -383,23 +438,27 @@ type RecordingMetadataResponse = HashMap<String, RecordingMetadataEntry>;
 /// Resolves a batch of recording MBIDs into actual artist-credit name + track title pairs.
 pub fn fetch_recording_titles(
     recording_mbids: &[String],
+    lb_limiter: &mut LbRateLimiter,
 ) -> anyhow::Result<HashMap<String, (String, String)>> {
     if recording_mbids.is_empty() {
         return Ok(HashMap::new());
     }
 
+    lb_limiter.wait();
     let joined = recording_mbids.join(",");
-    let response: RecordingMetadataResponse =
-        ureq::get("https://api.listenbrainz.org/1/metadata/recording/")
+    let resp = call_with_retry(|agent| {
+        agent
+            .get("https://api.listenbrainz.org/1/metadata/recording/")
             .set("User-Agent", USER_AGENT)
             .query("recording_mbids", &joined)
             .query("inc", "artist")
-            .call()
-            .map_err(|e| {
-                warn!("ListenBrainz Metadata error: {}", e);
-                e
-            })?
-            .into_json()?;
+    })
+    .map_err(|e| {
+        warn!("ListenBrainz Metadata error: {}", e);
+        e
+    })?;
+    lb_limiter.update_from_response(&resp);
+    let response: RecordingMetadataResponse = resp.into_json()?;
 
     let mut titles = HashMap::new();
     for (mbid, entry) in response {
@@ -428,7 +487,9 @@ pub fn generate_recommendations(
 ) -> anyhow::Result<Vec<RecommendedTrack>> {
     let mut mbid_cache = load_mbid_cache(mbid_cache_path);
     let mut limiter = MbRateLimiter::new();
+    let mut lb_limiter = LbRateLimiter::new();
     let mut candidates: Vec<RecommendedTrack> = Vec::new();
+    let mut last_error: Option<anyhow::Error> = None;
     let mut rng = rand::rng();
 
     if seed_artists.is_empty() {
@@ -438,14 +499,13 @@ pub fn generate_recommendations(
 
     let total_recs = config.pool_size.max(config.recommendations_per_fetch);
 
-    // Safety constraint: Only process up to the number of weights we have defined
-    let active_artists: Vec<&String> = seed_artists
-        .iter()
-        .take(ARTIST_WEIGHT_SLOTS.len())
+    // Assign primary weights to the top 5 artists, while retaining remaining seed artists
+    // (fallback weight 2) so deficits roll over when top artists lack LB Radio data.
+    let active_artists: Vec<&String> = seed_artists.iter().collect();
+    let active_weights: Vec<usize> = (0..active_artists.len())
+        .map(|i| ARTIST_WEIGHT_SLOTS.get(i).copied().unwrap_or(2))
         .collect();
-    let active_weights = &ARTIST_WEIGHT_SLOTS[..active_artists.len()];
 
-    // Sum weights to calculate accurate percentages (in case there are fewer than 5 artists)
     let total_weight: usize = active_weights.iter().sum();
 
     let mut remaining_recs = total_recs;
@@ -473,15 +533,34 @@ pub fn generate_recommendations(
         // Lookup Artist MBID
         let seed_mbid = match resolve_artist_mbid(seed_artist, &mut mbid_cache, &mut limiter) {
             Ok(Some(mbid)) => mbid,
-            Ok(None) | Err(_) => {
-                deficit += target_slot; // Roll over the missed slot to the next artist
+            Ok(None) => {
+                deficit += target_slot;
+                continue;
+            }
+            Err(e) => {
+                warn!("Failed to resolve MBID for '{}': {}", seed_artist, e);
+                last_error = Some(e);
+                deficit += target_slot;
                 continue;
             }
         };
 
         // Fetch ListenBrainz Radio
-        let lb_pairs = fetch_lb_radio_for_artist(&seed_mbid, &config.listenbrainz_mode, 5, 3)
-            .unwrap_or_default();
+        let lb_pairs = match fetch_lb_radio_for_artist(
+            &seed_mbid,
+            &config.listenbrainz_mode,
+            5,
+            3,
+            &mut lb_limiter,
+        ) {
+            Ok(pairs) => pairs,
+            Err(e) => {
+                warn!("ListenBrainz radio error for '{}': {}", seed_artist, e);
+                last_error = Some(e);
+                deficit += target_slot;
+                continue;
+            }
+        };
 
         if lb_pairs.is_empty() {
             deficit += target_slot; // Roll over the missed slot to the next artist
@@ -489,7 +568,15 @@ pub fn generate_recommendations(
         }
 
         let recording_mbids: Vec<String> = lb_pairs.iter().map(|(_, mbid)| mbid.clone()).collect();
-        let titles = fetch_recording_titles(&recording_mbids).unwrap_or_default();
+        let titles = match fetch_recording_titles(&recording_mbids, &mut lb_limiter) {
+            Ok(t) => t,
+            Err(e) => {
+                warn!("ListenBrainz metadata error for '{}': {}", seed_artist, e);
+                last_error = Some(e);
+                deficit += target_slot;
+                continue;
+            }
+        };
 
         debug!(
             "ListenBrainz found {} potential recordings for {}",
@@ -523,7 +610,15 @@ pub fn generate_recommendations(
         deficit = target_slot.saturating_sub(actual_taken);
     }
 
-    save_mbid_cache(mbid_cache_path, &mbid_cache)?;
+    if let Err(e) = save_mbid_cache(mbid_cache_path, &mbid_cache) {
+        warn!("Failed to save MBID cache: {}", e);
+    }
+
+    if candidates.is_empty()
+        && let Some(err) = last_error
+    {
+        return Err(err);
+    }
 
     // Final shuffle to mix the top artists' songs with the smaller artists' songs
     candidates.shuffle(&mut rng);
@@ -570,5 +665,174 @@ mod tests {
         assert!(artists_match("Beyoncé", "Beyonce"));
         assert!(artists_match("Motörhead", "Motorhead"));
         assert!(!artists_match("Duumu", "EMIA"));
+    }
+
+    #[test]
+    #[ignore]
+    fn test_diagnose_real_playlist_recommendations() {
+        let config = crate::configuration::CONFIGURATION.read().unwrap();
+        let playlist_path = crate::configuration::load_last_playlist()
+            .filter(|p| !p.is_empty())
+            .or_else(|| {
+                if !config.songs_directory.is_empty() {
+                    Some(config.songs_directory.clone())
+                } else {
+                    config.song_directories.first().cloned()
+                }
+            })
+            .expect("No configured playlist found on machine");
+
+        let listenbrainz_mode = config.streaming.listenbrainz_mode.clone();
+        let recommendations_per_fetch = config.streaming.recommendations_per_fetch;
+        drop(config);
+
+        println!("=== REAL PLAYLIST DIAGNOSTIC ===");
+        println!("Playlist path: {}", playlist_path);
+        println!("listenbrainz_mode: {}, recommendations_per_fetch: {}", listenbrainz_mode, recommendations_per_fetch);
+
+        let mut player = crate::player::PlayerSession::default();
+        player.load_playlist(&playlist_path);
+        println!("Loaded songs count: {}", player.songs.len());
+        for (i, key) in player.songs.keys().take(10).enumerate() {
+            println!("  Sample song[{}]: {}", i, key);
+        }
+
+        let library = LibraryIndex::from_song_keys(&player.songs);
+        println!("Parsed artist_count: {}", library.artist_count());
+        let seed_artists = library.seed_artists(10);
+        println!("Top 10 seed_artists: {:?}", seed_artists);
+
+        let real_cache_path = crate::PROJECT_DIRECTORY.data_dir().join("mbid_cache.json");
+        println!("Real MBID cache path: {:?} (exists={})", real_cache_path, real_cache_path.exists());
+        let mut mbid_cache = load_mbid_cache(&real_cache_path);
+        println!("MBID cache entries: {}", mbid_cache.len());
+
+        let mut limiter = MbRateLimiter::new();
+        for (idx, artist) in seed_artists.iter().enumerate() {
+            let cached_state = mbid_cache.get(artist).cloned();
+            println!("\n--- Seed Artist #{}: '{}' (in_cache={:?}) ---", idx + 1, artist, cached_state);
+            let mbid_res = resolve_artist_mbid(artist, &mut mbid_cache, &mut limiter);
+            println!("  resolve_artist_mbid -> {:?}", mbid_res);
+
+            let Ok(Some(seed_mbid)) = mbid_res else {
+                continue;
+            };
+
+            let lb_url = format!("https://api.listenbrainz.org/1/lb-radio/artist/{}", seed_mbid);
+            let lb_resp = crate::streaming::http::http_agent()
+                .get(&lb_url)
+                .set("User-Agent", USER_AGENT)
+                .query("mode", &listenbrainz_mode)
+                .query("max_similar_artists", "5")
+                .query("max_recordings_per_artist", "3")
+                .query("pop_begin", "0")
+                .query("pop_end", "100")
+                .call();
+
+            match lb_resp {
+                Ok(resp) => {
+                    let status = resp.status();
+                    let rem = resp.header("X-RateLimit-Remaining").map(|s| s.to_string());
+                    let reset = resp.header("X-RateLimit-Reset-In").map(|s| s.to_string());
+                    let body_str = resp.into_string().unwrap_or_default();
+                    println!(
+                        "  LB Radio HTTP {} (RateLimit-Remaining={:?}, Reset-In={:?}, body_len={})",
+                        status, rem, reset, body_str.len()
+                    );
+                    if body_str.len() <= 200 {
+                        println!("  LB Radio raw body: {}", body_str);
+                    }
+                    if let Ok(parsed) = serde_json::from_str::<LbRadioArtistResponse>(&body_str) {
+                        let mbids: Vec<String> = parsed
+                            .values()
+                            .flat_map(|v| v.iter().filter_map(|e| e.recording_mbid.clone()))
+                            .collect();
+                        println!("  LB Radio parsed {} recording MBIDs", mbids.len());
+                        if !mbids.is_empty() {
+                            let joined = mbids.join(",");
+                            let meta_resp = crate::streaming::http::http_agent()
+                                .get("https://api.listenbrainz.org/1/metadata/recording/")
+                                .set("User-Agent", USER_AGENT)
+                                .query("recording_mbids", &joined)
+                                .query("inc", "artist")
+                                .call();
+                            match meta_resp {
+                                Ok(mresp) => {
+                                    let mstatus = mresp.status();
+                                    let mrem = mresp.header("X-RateLimit-Remaining").map(|s| s.to_string());
+                                    let mreset = mresp.header("X-RateLimit-Reset-In").map(|s| s.to_string());
+                                    let mbody = mresp.into_string().unwrap_or_default();
+                                    println!(
+                                        "  LB Metadata HTTP {} (RateLimit-Remaining={:?}, Reset-In={:?}, body_len={})",
+                                        mstatus, mrem, mreset, mbody.len()
+                                    );
+                                    if let Ok(titles) = serde_json::from_str::<RecordingMetadataResponse>(&mbody) {
+                                        let mut resolved = 0usize;
+                                        let mut unowned = 0usize;
+                                        for entry in titles.values() {
+                                            let a = entry.artist.as_ref().map(|x| x.name.as_str()).or(entry.artist_name.as_deref());
+                                            let t = entry.recording.as_ref().map(|x| x.name.as_str()).or(entry.recording_name.as_deref()).or(entry.track_name.as_deref());
+                                            if let (Some(a), Some(t)) = (a, t) {
+                                                resolved += 1;
+                                                if !library.contains(a, t) {
+                                                    unowned += 1;
+                                                }
+                                            }
+                                        }
+                                        println!("  LB Metadata entries={}, resolved_artist_title={}, unowned={}", titles.len(), resolved, unowned);
+                                    } else {
+                                        println!("  LB Metadata JSON parse failed! sample={}", &mbody[..mbody.len().min(300)]);
+                                    }
+                                }
+                                Err(e) => println!("  LB Metadata HTTP ERROR: {:?}", e),
+                            }
+                        }
+                    } else {
+                        println!("  LB Radio JSON parse FAILED! sample={}", &body_str[..body_str.len().min(300)]);
+                    }
+                }
+                Err(ureq::Error::Status(code, resp)) => {
+                    let rem = resp.header("X-RateLimit-Remaining").map(|s| s.to_string());
+                    let reset = resp.header("X-RateLimit-Reset-In").map(|s| s.to_string());
+                    let retry = resp.header("Retry-After").map(|s| s.to_string());
+                    let body = resp.into_string().unwrap_or_default();
+                    println!(
+                        "  LB Radio HTTP ERROR status={} (Remaining={:?}, Reset={:?}, Retry-After={:?}) body={}",
+                        code, rem, reset, retry, body
+                    );
+                }
+                Err(e) => {
+                    println!("  LB Radio TRANSPORT ERROR: {:?}", e);
+                }
+            }
+        }
+
+        // Now simulate 5 consecutive generate_recommendations runs using a temp copy of mbid_cache
+        let temp_cache = std::env::temp_dir().join(format!("retro_diag_mbid_{}.json", std::process::id()));
+        if real_cache_path.exists() {
+            let _ = std::fs::copy(&real_cache_path, &temp_cache);
+        }
+        let snapshot = StreamingConfigSnapshot {
+            recommendations_per_fetch,
+            pool_size: recommendations_per_fetch.max(40),
+            listenbrainz_mode,
+        };
+        println!("\n=== SIMULATING 5 CONSECUTIVE generate_recommendations() CALLS (2s gap) ===");
+        for run in 1..=5 {
+            let start = Instant::now();
+            let res = generate_recommendations(&library, &library.seed_artists(8), &snapshot, &temp_cache);
+            match &res {
+                Ok(tracks) => {
+                    println!("Run #{}: OK -> {} tracks in {:?}", run, tracks.len(), start.elapsed());
+                    assert!(!tracks.is_empty(), "Expected non-empty recommendations on run #{}", run);
+                }
+                Err(e) => {
+                    println!("Run #{}: ERR -> {} in {:?}", run, e, start.elapsed());
+                    panic!("Expected Ok recommendations on run #{}, got Err: {}", run, e);
+                }
+            }
+            std::thread::sleep(Duration::from_secs(2));
+        }
+        let _ = std::fs::remove_file(&temp_cache);
     }
 }

@@ -1,5 +1,6 @@
 pub mod cache;
 pub mod coordinator;
+pub mod http;
 pub mod library;
 pub mod lyrics;
 pub mod recommend;
