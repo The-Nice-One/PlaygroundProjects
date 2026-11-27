@@ -111,7 +111,7 @@ pub struct LayerMeshPayload {
 
 pub fn handle_load_events_system(
     mut events: MessageReader<LoadTileEvent>,
-    source: Res<ArcTileSource>,
+    source: Option<Res<ArcTileSource>>,
     handle: Res<TokioHandle>,
     queue: Res<TileQueue>,
     registry: Res<RendererRegistry>,
@@ -121,6 +121,10 @@ pub fn handle_load_events_system(
     mut cache: ResMut<TileLruCache>,
     camera_q: Query<&GlobalTransform, Or<(With<Camera3d>, With<Camera2d>)>>,
 ) {
+    let Some(source) = source else {
+        return;
+    };
+
     let snapshot = registry.snapshot(config.clone(), Arc::clone(&bin_tiers.0), mode.get().clone());
 
     let mut requests: Vec<(TileCoord, f32)> = events

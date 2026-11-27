@@ -1,6 +1,7 @@
 //! UI systems for the building selection panel and persistent HUD.
 
 use bevy::prelude::*;
+use bevy::ui_widgets::{Activate, Button};
 
 use crate::building_colors::{tier_label, tier_ui_color};
 use crate::components::{ConstructionSite, LotData, OwnershipTier, PlayerConverted};
@@ -152,7 +153,7 @@ pub fn spawn_hud(
             bp.spawn((
                 Text::new("View source on GitHub"),
                 TextFont {
-                    font_size: 12.0,
+                    font_size: FontSize::Px(12.0),
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -179,7 +180,7 @@ pub fn spawn_hud(
             p.spawn((
                 Text::new("Controls"),
                 TextFont {
-                    font_size: 13.0,
+                    font_size: FontSize::Px(13.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.7, 0.7, 0.75)),
@@ -201,7 +202,7 @@ pub fn spawn_hud(
                 p.spawn((
                     Text::new(text),
                     TextFont {
-                        font_size: 12.0,
+                        font_size: FontSize::Px(12.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -243,7 +244,7 @@ pub fn spawn_hud(
                 bp.spawn((
                     Text::new("2D"),
                     TextFont {
-                        font_size: 12.0,
+                        font_size: FontSize::Px(12.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -278,7 +279,7 @@ pub fn spawn_hud(
                 bp.spawn((
                     Text::new("3D"),
                     TextFont {
-                        font_size: 12.0,
+                        font_size: FontSize::Px(12.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -333,7 +334,7 @@ pub fn spawn_hud(
                 bp.spawn((
                     Text::new("LOD"),
                     TextFont {
-                        font_size: 12.0,
+                        font_size: FontSize::Px(12.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -378,7 +379,7 @@ pub fn spawn_hud(
                 bp.spawn((
                     Text::new(mode_label(*mode)),
                     TextFont {
-                        font_size: 12.0,
+                        font_size: FontSize::Px(12.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -433,7 +434,7 @@ pub fn spawn_hud(
             lp.spawn((
                 Text::new("Building Legend"),
                 TextFont {
-                    font_size: 13.0,
+                    font_size: FontSize::Px(13.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.7, 0.7, 0.75)),
@@ -639,7 +640,7 @@ fn spawn_panel(
                 hp.spawn((
                     Text::new(lot.owner.as_str()),
                     TextFont {
-                        font_size: 14.0,
+                        font_size: FontSize::Px(14.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),
@@ -729,7 +730,7 @@ fn spawn_panel(
                 p.spawn((
                     Text::new(cost_line),
                     TextFont {
-                        font_size: 11.0,
+                        font_size: FontSize::Px(11.0),
                         ..default()
                     },
                     TextColor(Color::srgb(0.70, 0.70, 0.70)),
@@ -737,7 +738,7 @@ fn spawn_panel(
                 p.spawn((
                     Text::new(annual_line),
                     TextFont {
-                        font_size: 11.0,
+                        font_size: FontSize::Px(11.0),
                         ..default()
                     },
                     TextColor(Color::srgb(0.70, 0.70, 0.70)),
@@ -783,7 +784,7 @@ fn spawn_panel(
                     bp.spawn((
                         Text::new(btn_text),
                         TextFont {
-                            font_size: 13.0,
+                            font_size: FontSize::Px(13.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -794,7 +795,7 @@ fn spawn_panel(
                 p.spawn((
                     Text::new("Already non-market housing."),
                     TextFont {
-                        font_size: 12.0,
+                        font_size: FontSize::Px(12.0),
                         ..default()
                     },
                     TextColor(Color::srgb(0.60, 0.90, 0.72)),
@@ -804,7 +805,7 @@ fn spawn_panel(
                 p.spawn((
                     Text::new(format!("Completes year {}.", s.complete_at_year)),
                     TextFont {
-                        font_size: 12.0,
+                        font_size: FontSize::Px(12.0),
                         ..default()
                     },
                     TextColor(Color::srgb(0.90, 0.72, 0.30)),
@@ -816,14 +817,14 @@ fn spawn_panel(
 // Button observers
 
 fn on_mass_toggle_clicked(
-    _click: On<Pointer<Click>>,
+    _activate: On<Activate>,
     mut writer: MessageWriter<ToggleSelectionModeEvent>,
 ) {
     writer.write(ToggleSelectionModeEvent);
 }
 
 fn on_toggle_mode_clicked(
-    _click: On<Pointer<Click>>,
+    _activate: On<Activate>,
     mut next_state: ResMut<NextState<RenderMode>>,
     state: Res<State<RenderMode>>,
 ) {
@@ -833,20 +834,20 @@ fn on_toggle_mode_clicked(
     });
 }
 
-fn on_toggle_lod_clicked(_click: On<Pointer<Click>>, mut lod: ResMut<LodOptimizationEnabled>) {
+fn on_toggle_lod_clicked(_activate: On<Activate>, mut lod: ResMut<LodOptimizationEnabled>) {
     lod.0 = !lod.0;
 }
 
-fn on_view_source_clicked(_click: On<Pointer<Click>>) {
+fn on_view_source_clicked(_activate: On<Activate>) {
     webbrowser::open("https://github.com/The-Nice-One/PlaygroundProjects/tree/main/Miscellaneous/NonMarketHousingSimulation").unwrap();
 }
 
 fn on_convert_clicked(
-    click: On<Pointer<Click>>,
+    activate: On<Activate>,
     btns: Query<&ConvertButton>,
     mut writer: MessageWriter<ConvertBuildingAction>,
 ) {
-    if let Ok(btn) = btns.get(click.entity) {
+    if let Ok(btn) = btns.get(activate.entity) {
         writer.write(ConvertBuildingAction {
             entity: btn.entity,
             bin: btn.bin,
@@ -855,11 +856,11 @@ fn on_convert_clicked(
 }
 
 fn on_build_clicked(
-    click: On<Pointer<Click>>,
+    activate: On<Activate>,
     btns: Query<&BuildButton>,
     mut writer: MessageWriter<BuildOnLotAction>,
 ) {
-    if let Ok(btn) = btns.get(click.entity) {
+    if let Ok(btn) = btns.get(activate.entity) {
         writer.write(BuildOnLotAction {
             entity: btn.entity,
             bin: btn.bin,
@@ -890,7 +891,7 @@ fn legend_row(p: &mut ChildSpawnerCommands, label: &str, color: Color) {
         row.spawn((
             Text::new(label),
             TextFont {
-                font_size: 12.0,
+                font_size: FontSize::Px(12.0),
                 ..default()
             },
             TextColor(Color::WHITE),
@@ -909,7 +910,7 @@ fn stat_row(p: &mut ChildSpawnerCommands, label: &str, value: &str) {
         row.spawn((
             Text::new(label),
             TextFont {
-                font_size: 12.0,
+                font_size: FontSize::Px(12.0),
                 ..default()
             },
             TextColor(Color::srgb(0.65, 0.65, 0.65)),
@@ -917,7 +918,7 @@ fn stat_row(p: &mut ChildSpawnerCommands, label: &str, value: &str) {
         row.spawn((
             Text::new(value),
             TextFont {
-                font_size: 12.0,
+                font_size: FontSize::Px(12.0),
                 ..default()
             },
             TextColor(Color::WHITE),
@@ -944,7 +945,7 @@ fn hud_label<T: Component>(p: &mut ChildSpawnerCommands, header: &str, marker: T
         col.spawn((
             Text::new(header),
             TextFont {
-                font_size: 10.0,
+                font_size: FontSize::Px(10.0),
                 ..default()
             },
             TextColor(Color::srgb(0.55, 0.55, 0.65)),
@@ -952,7 +953,7 @@ fn hud_label<T: Component>(p: &mut ChildSpawnerCommands, header: &str, marker: T
         col.spawn((
             Text::new(initial),
             TextFont {
-                font_size: 14.0,
+                font_size: FontSize::Px(14.0),
                 ..default()
             },
             TextColor(Color::WHITE),

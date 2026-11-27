@@ -11,8 +11,12 @@ pub struct ReqwestHttpBackend {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl AsyncBackend for ReqwestHttpBackend {
-    async fn read_exact(&self, offset: usize, length: usize) -> Result<BackendResponse, PmtError> {
-        let range = format!("bytes={}-{}", offset, offset + length - 1);
+    async fn read_exact(&self, offset: u64, length: usize) -> Result<BackendResponse, PmtError> {
+        let range = format!(
+            "bytes={}-{}",
+            offset,
+            offset + (length as u64).saturating_sub(1)
+        );
         let resp = self
             .client
             .get(&self.url)
@@ -29,7 +33,7 @@ impl AsyncBackend for ReqwestHttpBackend {
         Ok(BackendResponse::new(data))
     }
 
-    async fn read(&self, offset: usize, length: usize) -> Result<BackendResponse, PmtError> {
+    async fn read(&self, offset: u64, length: usize) -> Result<BackendResponse, PmtError> {
         self.read_exact(offset, length).await
     }
 }
@@ -42,7 +46,7 @@ pub struct BrowserHttpBackend {
 
 #[cfg(target_arch = "wasm32")]
 impl AsyncBackend for BrowserHttpBackend {
-    async fn read_exact(&self, offset: usize, length: usize) -> Result<BackendResponse, PmtError> {
+    async fn read_exact(&self, offset: u64, length: usize) -> Result<BackendResponse, PmtError> {
         use send_wrapper::SendWrapper;
         use wasm_bindgen::JsCast;
         use wasm_bindgen_futures::JsFuture;
@@ -52,7 +56,11 @@ impl AsyncBackend for BrowserHttpBackend {
         let headers =
             Headers::new().map_err(|_| PmtError::DirectoryCacheError("Headers fail".into()))?;
 
-        let range_value = format!("bytes={}-{}", offset, offset + length - 1);
+        let range_value = format!(
+            "bytes={}-{}",
+            offset,
+            offset + (length as u64).saturating_sub(1)
+        );
         headers
             .set("Range", &range_value)
             .map_err(|_| PmtError::DirectoryCacheError("Header set fail".into()))?;
@@ -91,7 +99,7 @@ impl AsyncBackend for BrowserHttpBackend {
         Ok(BackendResponse::new(bytes::Bytes::from(bytes)))
     }
 
-    async fn read(&self, offset: usize, length: usize) -> Result<BackendResponse, PmtError> {
+    async fn read(&self, offset: u64, length: usize) -> Result<BackendResponse, PmtError> {
         self.read_exact(offset, length).await
     }
 }

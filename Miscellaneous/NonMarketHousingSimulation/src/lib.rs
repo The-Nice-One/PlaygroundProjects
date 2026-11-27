@@ -67,7 +67,7 @@ fn setup_scene(mut commands: Commands) {
     commands.spawn((
         DirectionalLight {
             illuminance: 6_000.0,
-            shadows_enabled: false,
+            shadow_maps_enabled: false,
             ..default()
         },
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.8, 0.4, 0.0)),

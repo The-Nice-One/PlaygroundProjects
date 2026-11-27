@@ -160,7 +160,7 @@ impl Plugin for MapSimulationPlugin {
             .init_resource::<BinTiers>()
             .init_resource::<SimulationBudget>()
             .init_resource::<HousingStats>()
-            .insert_resource(StaticTransformOptimizations::enabled());
+            .insert_resource(StaticTransformOptimizations::Enabled);
 
         app.add_plugins(MeshPickingPlugin);
 
@@ -410,7 +410,7 @@ fn spawn_loading_screen(mut commands: Commands) {
             p.spawn((
                 Text::new("NYC Housing Simulation"),
                 TextFont {
-                    font_size: 28.0,
+                    font_size: FontSize::Px(28.0),
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -418,7 +418,7 @@ fn spawn_loading_screen(mut commands: Commands) {
             p.spawn((
                 Text::new("Loading property data..."),
                 TextFont {
-                    font_size: 16.0,
+                    font_size: FontSize::Px(16.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.55, 0.55, 0.65)),

@@ -30,12 +30,10 @@ codegen-units = 1
 strip = true
 
 [features]
-dev = [
-    "bevy/dynamic_linking",
-]
+dev = ["bevy/dynamic_linking"]
 
 [dependencies]
-bevy = { version = "0.18", default-features = false, features = [
+bevy = { version = "0.20", default-features = false, features = [
     "default_app",
     "2d_api",
     "2d_bevy_render",
@@ -43,6 +41,7 @@ bevy = { version = "0.18", default-features = false, features = [
     "3d_bevy_render",
     "ui_api",
     "ui_bevy_render",
+    "bevy_ui_widgets",
     "scene",
     "picking",
     "bevy_gilrs",
@@ -56,32 +55,44 @@ bevy = { version = "0.18", default-features = false, features = [
     "bevy_audio",
     "vorbis",
 ] }
-webbrowser  = "1.2.1"
-flate2      = { version = "1.1", features = ["rust_backend"], default-features = false }
-pmtiles     = { version = "0.23", default-features = false, features = ["__async"] }
-mvt-reader  = "2.3"
-geo-types   = "0.7"
-bytes       = "1"
-async-lock  = "3"
-earcutr     = "0.4"
-tokio       = { version = "1", features = ["sync"] }
+webbrowser = "1.2"
+flate2 = { version = "1.1", features = [
+    "rust_backend",
+], default-features = false }
+pmtiles = { version = "0.28", default-features = false, features = [
+    "__async-s3-rustls",
+] }
+mvt-reader = "2.5"
+geo-types = "0.7"
+bytes = "1"
+async-lock = "3"
+earcutr = "0.5"
+tokio = { version = "1", features = ["sync"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-mbtiles = { version = "0.17", default-features = false }
-tokio   = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots"] }
+mbtiles = { version = "0.24", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
+reqwest = { version = "0.13", default-features = false, features = [
+    "rustls",
+    "webpki-roots",
+] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen             = "0.2"
-wasm-bindgen-futures     = "0.4"
-js-sys                   = "0.3"
-web-sys                  = { version = "0.3", features = [
-    "Window", "Response", "Headers", "RequestInit", "RequestMode", "Navigator"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Response",
+    "Headers",
+    "RequestInit",
+    "RequestMode",
+    "Navigator",
 ] }
-send_wrapper             = { version = "0.6", features = ["futures"] }
+send_wrapper = { version = "0.6", features = ["futures"] }
 console_error_panic_hook = "0.1"
 
-getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [build-dependencies]
 embed-resource = "1"

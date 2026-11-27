@@ -2,6 +2,7 @@
 
 use bevy::color::Hsla;
 use bevy::ecs::relationship::Relationship;
+use bevy::picking::hover::HoverMap;
 use bevy::prelude::*;
 
 use crate::cache::{ColorMaterialCache, MaterialCache};
@@ -43,9 +44,9 @@ pub struct HoverState {
 
 // Click observer
 
-/// Registered as a global observer on `Pointer<Click>`.
+/// Registered as a global observer on `PointerClick`.
 pub fn on_mesh_click(
-    mut click: On<Pointer<Click>>,
+    mut click: On<PointerClick>,
     selectables: Query<(&Selectable, Option<&LotData>, Option<&BuildingProxyMarker>)>,
     parents: Query<&ChildOf>,
     mut state: ResMut<SelectionState>,
@@ -129,7 +130,7 @@ pub fn on_mesh_click(
 // Hover Observers for 3D
 
 pub fn on_mesh_over(
-    over: On<Pointer<Over>>,
+    over: On<PointerOver>,
     parents: Query<&ChildOf>,
     proxies: Query<Option<&LotData>, With<BuildingProxyMarker>>,
     mode: Res<SelectionMode>,
@@ -153,7 +154,7 @@ pub fn on_mesh_over(
 }
 
 pub fn on_mesh_out(
-    out: On<Pointer<Out>>,
+    out: On<PointerOut>,
     parents: Query<&ChildOf>,
     mode: Res<SelectionMode>,
     mut commands: Commands,
@@ -171,6 +172,20 @@ pub fn on_mesh_out(
     }
 }
 
+#[derive(bevy::ecs::system::SystemParam)]
+pub struct UiHoverCheck<'w, 's> {
+    hover_map: Res<'w, HoverMap>,
+    ui_nodes: Query<'w, 's, (), With<Node>>,
+}
+
+impl UiHoverCheck<'_, '_> {
+    fn is_over_ui(&self) -> bool {
+        self.hover_map
+            .values()
+            .any(|hits| hits.keys().any(|entity| self.ui_nodes.contains(*entity)))
+    }
+}
+
 // 2D pick building
 
 pub fn pick_building_2d(
@@ -179,7 +194,7 @@ pub fn pick_building_2d(
     windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform), With<MapCamera2d>>,
     buildings_q: Query<(Entity, &BuildingAabb2D, &GlobalTransform, &LotData)>,
-    ui_interactions: Query<&Interaction, With<Node>>,
+    ui_hover: UiHoverCheck,
     mut state: ResMut<SelectionState>,
     mode: Res<SelectionMode>,
     mut clr_ev: MessageWriter<SelectionClearedEvent>,
@@ -196,7 +211,7 @@ pub fn pick_building_2d(
     }
 
     // Evaluate UI interaction logic before handling the pointer release
-    let is_ui_active = ui_interactions.iter().any(|i| *i != Interaction::None);
+    let is_ui_active = ui_hover.is_over_ui();
     // Include last frame's UI activity to protect touches that were released
     let block_click = is_ui_active || *was_ui_active;
     *was_ui_active = is_ui_active;
@@ -232,12 +247,11 @@ pub fn pick_building_2d(
     // Collect the release position from either mouse or touch.
     let mut release_pos: Option<Vec2> = None;
 
-    for touch in touches.iter_just_released() {
+    if let Some(touch) = touches.iter_just_released().next() {
         // Only select a building if it was a tap and not a long pan drag
         if touch.position().distance_squared(touch.start_position()) < 100.0 {
             release_pos = Some(touch.position());
         }
-        break;
     }
 
     if mouse.just_released(MouseButton::Left) {
@@ -323,7 +337,7 @@ pub fn hover_building_2d_system(
     touches: Res<Touches>,
     camera_q: Query<(&Camera, &GlobalTransform), With<MapCamera2d>>,
     buildings_q: Query<(Entity, &BuildingAabb2D, &GlobalTransform), With<LotData>>,
-    ui_interactions: Query<&Interaction, With<Node>>,
+    ui_hover: UiHoverCheck,
     mut state: ResMut<HoverState>,
     mut commands: Commands,
     mode: Res<SelectionMode>,
@@ -357,7 +371,7 @@ pub fn hover_building_2d_system(
     };
 
     // Clear hover effect if moving pointer into UI.
-    if ui_interactions.iter().any(|i| *i != Interaction::None) {
+    if ui_hover.is_over_ui() {
         if let Some(prev) = state.hovered_2d {
             if let Some(mut e) = commands.get_entity(prev).ok() {
                 e.remove::<Hovered>();
