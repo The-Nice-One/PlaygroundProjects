@@ -33,29 +33,17 @@ strip = true
 dev = ["bevy/dynamic_linking"]
 
 [dependencies]
-bevy = { version = "0.20", default-features = false, features = [
-    "default_app",
-    "2d_api",
-    "2d_bevy_render",
-    "3d_api",
-    "3d_bevy_render",
-    "ui_api",
-    "ui_bevy_render",
-    "bevy_ui_widgets",
-    "scene",
-    "picking",
-    "bevy_gilrs",
-    "bevy_winit",
-    "default_font",
-    "multi_threaded",
-    "webgl2",
-    "x11",
-    "wayland",
-    "sysinfo_plugin",
-    "bevy_audio",
-    "vorbis",
+bevy = { version = "0.20.0", default-features = false, features = [
+    "2d",
+    "3d",
+    "ui",
 ] }
-webbrowser = "1.2"
+webbrowser = { version = "1.2", features = ["hardened"] }
+winit = { version = "0.30", default-features = false }
+log = { version = "0.4", features = [
+    "max_level_debug",
+    "release_max_level_warn",
+] }
 flate2 = { version = "1.1", features = [
     "rust_backend",
 ], default-features = false }
@@ -91,7 +79,6 @@ web-sys = { version = "0.3", features = [
 ] }
 send_wrapper = { version = "0.6", features = ["futures"] }
 console_error_panic_hook = "0.1"
-
 getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [build-dependencies]
